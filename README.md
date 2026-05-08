@@ -1,5 +1,8 @@
 # GeoRevolt
 
+[![License: AGPL v3](https://img.shields.io/badge/License-AGPL%20v3-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
+[![CI](https://github.com/mrZhigach/GeoRevolt/actions/workflows/test.yml/badge.svg)](https://github.com/mrZhigach/GeoRevolt/actions/workflows/test.yml)
+
 Децентрализованные рынки предсказаний на карте. AMM (Uniswap V2) + MapLibre GL JS + Next.js.
 
 ## Для пользователя
@@ -176,6 +179,21 @@ docker compose -f docker-compose.prod.yml up -d
 | `NEXT_PUBLIC_MARKET_FACTORY_ADDRESS` | Адрес MarketFactory | да |
 | `NEXT_PUBLIC_MOCK_USDC_ADDRESS` | Адрес USDC | да |
 | `DB_PASSWORD` | Пароль PostgreSQL | да |
+
+## Деплой на Vercel
+
+Проект оптимизирован для деплоя на [Vercel](https://vercel.com):
+
+1. Зарегистрируйтесь на vercel.com через GitHub.
+2. Нажмите **Add New → Project**, импортируйте `mrZhigach/GeoRevolt`.
+3. Vercel автоматически определит Next.js и применит настройки из `vercel.json`.
+4. В разделе **Environment Variables** добавьте переменные из `.env.example`:
+   - `NEXT_PUBLIC_MARKET_FACTORY_ADDRESS` — адрес MarketFactory
+   - `NEXT_PUBLIC_MOCK_USDC_ADDRESS` — адрес USDC
+5. Нажмите **Deploy**.
+6. После деплоя откройте публичную ссылку и подключите кошелёк к Polygon Amoy.
+
+> **Важно:** Vercel — serverless-платформа. SQLite не поддерживается, используйте PostgreSQL (`DATABASE_URL`).
 
 ## Лицензия
 

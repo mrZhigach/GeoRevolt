@@ -59,6 +59,13 @@
 | `app/api/health/route.ts` | GET /api/health → status, timestamp, uptime | 2025-05-09 |
 | `docker-compose.prod.yml` | Production stack: PostgreSQL 16 + app with healthcheck | 2025-05-09 |
 
+## Презентация и деплой
+| Артефакт | Версия | Дата | Описание |
+|----------|--------|------|----------|
+| `vercel.json` | 1.0 | 2025-05-09 | Конфигурация Vercel (Next.js, env) |
+| `SOCIAL_POST.md` | 1.0 | 2025-05-09 | Посты для соцсетей (EN/RU) |
+| Release v1.0.0 | 1.0.0 | 2025-05-09 | https://github.com/mrZhigach/GeoRevolt/releases/tag/v1.0.0 |
+
 ## Прочее
 - **Конфигурация OpenCode:** `.opencode/` – версия от 2025-05-11.
 - **Скрипты:** `scripts/validate-docs.sh` (дата создания 2025-05-11), `scripts/e2e-fork.sh` (2025-05-09), `scripts/load-test.sh` (2025-05-09).

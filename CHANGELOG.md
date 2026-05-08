@@ -2,6 +2,27 @@
 
 Все значимые изменения в проекте фиксируются здесь в хронологическом порядке (от новых к старым).
 
+## [2025-05-09] – Презентация проекта (badges, topics, release, Vercel, social)
+
+### Added
+- **README.md** — бейджи лицензии AGPL-3.0 и CI (shields.io)
+- **README.md** — раздел "Деплой на Vercel" с пошаговой инструкцией
+- **vercel.json** — конфигурация деплоя на Vercel (Next.js, env vars)
+- **SOCIAL_POST.md** — посты для соцсетей (английский + русский)
+- **Topics** — 10 тегов на GitHub (prediction-markets, polymarket, defi, map, nextjs, solidity, foundry, opencode, blockchain, polygon)
+- **Release v1.0.0** — создан тег и GitHub-релиз с описанием MVP
+
+---
+
+## [2025-05-09] – License fix + initial GitHub push
+
+### Fixed
+- **README.md** — упоминание "MIT" заменено на "GNU Affero General Public License v3.0 (AGPL-3.0)"
+- **LICENSE** — подтверждён полный текст AGPL-3.0 (661 строка), GitHub распознаёт как `agpl-3.0`
+- **Git push** — проект выгружен на github.com/mrZhigach/GeoRevolt
+
+---
+
 ## [2025-05-09] – Спринт 4 – Security + Load test + Deploy + Monitoring
 
 ### Added
