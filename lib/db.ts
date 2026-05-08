@@ -22,9 +22,15 @@ async function getPgPool(): Promise<Pool> {
   return pgPool;
 }
 
+let sqliteUnavailable = false;
+
 async function getSqliteDb(): Promise<any> {
+  if (sqliteUnavailable) throw new Error('SQLite unavailable');
   if (!sqliteDb) {
-    const Database = (await import('better-sqlite3')).default;
+    const Database = (await import('better-sqlite3').catch(() => {
+      sqliteUnavailable = true;
+      throw new Error('better-sqlite3 not available in this environment');
+    })).default;
     sqliteDb = new Database(DB_PATH);
     sqliteDb.pragma('journal_mode = WAL');
     sqliteDb.pragma('foreign_keys = ON');
@@ -35,6 +41,15 @@ async function getSqliteDb(): Promise<any> {
 
 export async function getDb(): Promise<any> {
   return usePostgres() ? getPgPool() : getSqliteDb();
+}
+
+export async function isDbAvailable(): Promise<boolean> {
+  try {
+    await getDb();
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 function initSqliteSchema(db: any) {

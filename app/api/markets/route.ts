@@ -1,19 +1,28 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getAllMarkets, toGeoJSON, createMarket } from '@/lib/db';
+import { getAllMarkets, toGeoJSON, createMarket, isDbAvailable } from '@/lib/db';
 
 export async function GET() {
   try {
+    const available = await isDbAvailable();
+    if (!available) {
+      return NextResponse.json({ type: 'FeatureCollection', features: [] });
+    }
     const markets = await getAllMarkets();
     const geoJson = toGeoJSON(markets);
     return NextResponse.json(geoJson);
   } catch (error) {
     console.error('GET /api/markets error:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return NextResponse.json({ type: 'FeatureCollection', features: [] });
   }
 }
 
 export async function POST(request: NextRequest) {
   try {
+    const available = await isDbAvailable();
+    if (!available) {
+      return NextResponse.json({ error: 'Database not available. Set DATABASE_URL for PostgreSQL.' }, { status: 503 });
+    }
+
     const body = await request.json();
 
     const requiredFields = ['contract_address', 'name', 'lng', 'lat', 'end_time', 'resolution_time'] as const;

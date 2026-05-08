@@ -1,9 +1,10 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import maplibregl, { GeoJSONSource } from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import MarketSidebar from './MarketSidebar';
+import CreateMarketModal from './CreateMarketModal';
 import { useAccount, useConnect, useDisconnect } from 'wagmi';
 import { injected } from 'wagmi/connectors';
 
@@ -20,6 +21,7 @@ export default function Map() {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<maplibregl.Map | null>(null);
   const [selectedMarket, setSelectedMarket] = useState<MarketProperties | null>(null);
+  const [createCoords, setCreateCoords] = useState<{ lng: number; lat: number } | null>(null);
   const [markets, setMarkets] = useState<MarketProperties[]>([]);
   const { address, isConnected } = useAccount();
   const { connect } = useConnect();
@@ -116,6 +118,13 @@ export default function Map() {
           });
         });
 
+        m.on('dblclick', (e) => {
+          if (e.lngLat) {
+            setSelectedMarket(null);
+            setCreateCoords({ lng: e.lngLat.lng, lat: e.lngLat.lat });
+          }
+        });
+
         m.on('mouseenter', 'markets-layer', () => {
           m.getCanvas().style.cursor = 'pointer';
         });
@@ -148,9 +157,26 @@ export default function Map() {
           </button>
         )}
       </div>
+      <div style={{ position: 'absolute', bottom: 12, left: 12, zIndex: 5, display: 'flex', gap: 8 }}>
+        <button onClick={() => { setSelectedMarket(null); setCreateCoords({ lng: 37.62, lat: 55.75 }); }} style={{
+          background: '#6366f1', border: 'none', color: '#fff', borderRadius: 6, padding: '8px 16px',
+          cursor: 'pointer', fontSize: 13, fontWeight: 500,
+        }}>
+          + New Market
+        </button>
+      </div>
+      <div style={{ position: 'absolute', bottom: 12, right: 12, zIndex: 5, background: '#1a1a2e', padding: '6px 12px', borderRadius: 6, color: '#64748b', fontSize: 11 }}>
+        Double-click map to create market
+      </div>
       <div ref={mapContainer} style={{ width: '100%', height: '100%' }} />
       {selectedMarket && (
         <MarketSidebar market={selectedMarket} onClose={() => setSelectedMarket(null)} />
+      )}
+      {createCoords && (
+        <CreateMarketModal coordinates={createCoords} onClose={() => setCreateCoords(null)} onCreated={() => {
+          setCreateCoords(null);
+          window.location.reload();
+        }} />
       )}
     </div>
   );

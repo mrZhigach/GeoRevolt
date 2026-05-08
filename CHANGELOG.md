@@ -2,6 +2,20 @@
 
 Все значимые изменения в проекте фиксируются здесь в хронологическом порядке (от новых к старым).
 
+## [2025-05-09] – Bugfix: API, map markers, market creation UI
+
+### Added
+- **components/CreateMarketModal.tsx** — форма создания рынка по клику на карте (двойной клик или кнопка + New Market). Собирает название, описание, категорию, даты, деплоит контракт через MarketFactory, POST в БД.
+- **Map.tsx** — обработчик `dblclick` на карте для создания рынка по координатам.
+- **lib/db.ts** — `isDbAvailable()` — проверка доступности БД без выброса исключения.
+
+### Fixed
+- **app/api/markets/route.ts** — GET возвращает пустой GeoJSON (не 500) если БД недоступна (Vercel без PostgreSQL). POST возвращает 503 с понятным сообщением.
+- **lib/db.ts** — `import('better-sqlite3')` обёрнут в try-catch для Vercel serverless (NativeModule не загружается).
+- **vercel.json** — исправлено имя переменной `NEXT_PUBLIC_USDC_ADDRESS` → `NEXT_PUBLIC_MOCK_USDC_ADDRESS`.
+
+---
+
 ## [2025-05-09] – Презентация проекта (badges, topics, release, Vercel, social)
 
 ### Added
