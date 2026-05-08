@@ -1,0 +1,168 @@
+'use client';
+
+import { useEffect, useRef, useState } from 'react';
+import maplibregl, { GeoJSONSource } from 'maplibre-gl';
+import 'maplibre-gl/dist/maplibre-gl.css';
+import MarketSidebar from './MarketSidebar';
+import { useAccount, useConnect, useDisconnect } from 'wagmi';
+import { injected } from 'wagmi/connectors';
+
+interface MarketProperties {
+  id: number;
+  contract_address: string;
+  name: string;
+  description: string;
+  category: string;
+  status: string;
+}
+
+export default function Map() {
+  const mapContainer = useRef<HTMLDivElement>(null);
+  const map = useRef<maplibregl.Map | null>(null);
+  const [selectedMarket, setSelectedMarket] = useState<MarketProperties | null>(null);
+  const [markets, setMarkets] = useState<MarketProperties[]>([]);
+  const { address, isConnected } = useAccount();
+  const { connect } = useConnect();
+  const { disconnect } = useDisconnect();
+
+  useEffect(() => {
+    if (map.current || !mapContainer.current) return;
+
+    const m = new maplibregl.Map({
+      container: mapContainer.current,
+      style: 'https://demotiles.maplibre.org/style.json',
+      center: [40, 55],
+      zoom: 3,
+      attributionControl: false,
+    });
+
+    m.addControl(new maplibregl.NavigationControl(), 'top-right');
+
+    m.on('load', () => {
+      fetchMarkets().then((features) => {
+        const geojson: GeoJSON.FeatureCollection = {
+          type: 'FeatureCollection',
+          features,
+        };
+
+        m.addSource('markets', {
+          type: 'geojson',
+          data: geojson,
+          cluster: true,
+          clusterMaxZoom: 14,
+          clusterRadius: 50,
+        });
+
+        m.addLayer({
+          id: 'clusters',
+          type: 'circle',
+          source: 'markets',
+          filter: ['has', 'point_count'],
+          paint: {
+            'circle-color': '#6366f1',
+            'circle-radius': ['step', ['get', 'point_count'], 20, 10, 30, 50, 40],
+            'circle-opacity': 0.7,
+          },
+        });
+
+        m.addLayer({
+          id: 'cluster-count',
+          type: 'symbol',
+          source: 'markets',
+          filter: ['has', 'point_count'],
+          layout: {
+            'text-field': ['get', 'point_count_abbreviated'],
+            'text-font': ['DIN Offc Pro Medium', 'Arial Unicode MS Bold'],
+            'text-size': 12,
+          },
+          paint: { 'text-color': '#ffffff' },
+        });
+
+        m.addLayer({
+          id: 'markets-layer',
+          type: 'circle',
+          source: 'markets',
+          filter: ['!', ['has', 'point_count']],
+          paint: {
+            'circle-radius': 8,
+            'circle-color': '#22c55e',
+            'circle-stroke-width': 2,
+            'circle-stroke-color': '#ffffff',
+            'circle-opacity': 0.9,
+          },
+        });
+
+        m.on('click', 'markets-layer', (e) => {
+          const props = e.features?.[0]?.properties as Record<string, any>;
+          if (props) {
+            setSelectedMarket({
+              id: props.id,
+              contract_address: props.contract_address,
+              name: props.name,
+              description: props.description,
+              category: props.category,
+              status: props.status,
+            });
+          }
+        });
+
+        m.on('click', 'clusters', (e) => {
+          const features = m.queryRenderedFeatures(e.point, { layers: ['clusters'] });
+          const clusterId = features[0].properties?.cluster_id;
+          const source = m.getSource('markets') as maplibregl.GeoJSONSource;
+          source.getClusterExpansionZoom(clusterId).then((zoom) => {
+            const geometry = features[0].geometry as GeoJSON.Point;
+            m.easeTo({ center: geometry.coordinates as [number, number], zoom });
+          });
+        });
+
+        m.on('mouseenter', 'markets-layer', () => {
+          m.getCanvas().style.cursor = 'pointer';
+        });
+        m.on('mouseleave', 'markets-layer', () => {
+          m.getCanvas().style.cursor = '';
+        });
+
+        setMarkets(features.map((f: any) => f.properties));
+      });
+    });
+
+    map.current = m;
+    return () => {
+      m.remove();
+      map.current = null;
+    };
+  }, []);
+
+  return (
+    <div style={{ position: 'relative', width: '100%', height: '100vh' }}>
+      <div style={{ position: 'absolute', top: 12, left: 12, zIndex: 5, background: '#1a1a2e', padding: '8px 16px', borderRadius: 8, boxShadow: '0 2px 8px rgba(0,0,0,0.3)' }}>
+        {isConnected ? (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <span style={{ color: '#22c55e', fontSize: 12 }}>{address?.slice(0, 6)}...{address?.slice(-4)}</span>
+            <button onClick={() => disconnect()} style={{ background: 'none', border: '1px solid #ef4444', color: '#ef4444', borderRadius: 4, padding: '4px 8px', cursor: 'pointer', fontSize: 11 }}>Disconnect</button>
+          </div>
+        ) : (
+          <button onClick={() => connect({ connector: injected() })} style={{ background: '#6366f1', border: 'none', color: '#fff', borderRadius: 6, padding: '8px 16px', cursor: 'pointer', fontSize: 13, fontWeight: 500 }}>
+            Connect Wallet
+          </button>
+        )}
+      </div>
+      <div ref={mapContainer} style={{ width: '100%', height: '100%' }} />
+      {selectedMarket && (
+        <MarketSidebar market={selectedMarket} onClose={() => setSelectedMarket(null)} />
+      )}
+    </div>
+  );
+}
+
+async function fetchMarkets(): Promise<GeoJSON.Feature[]> {
+  try {
+    const res = await fetch('/api/markets');
+    if (!res.ok) return [];
+    const data: GeoJSON.FeatureCollection = await res.json();
+    return data.features;
+  } catch {
+    return [];
+  }
+}

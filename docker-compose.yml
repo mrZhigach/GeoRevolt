@@ -1,0 +1,50 @@
+version: '3.8'
+
+services:
+  app:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - NEXT_PUBLIC_MARKET_FACTORY_ADDRESS=${NEXT_PUBLIC_MARKET_FACTORY_ADDRESS:-0x34A1D3fff3958843C43aD80F30b94c510645C316}
+      - NEXT_PUBLIC_MOCK_USDC_ADDRESS=${NEXT_PUBLIC_MOCK_USDC_ADDRESS:-0x5b73C5498c1E3b4dbA84de0F1833c4a029d90519}
+      - DATABASE_URL=${DATABASE_URL:-postgresql://georevolt:georevolt@db:5432/georevolt}
+      - DB_PATH=${DB_PATH:-/app/data/georevolt.db}
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - app-data:/app/data
+    restart: unless-stopped
+
+  db:
+    image: postgres:16-alpine
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: georevolt
+      POSTGRES_PASSWORD: georevolt
+      POSTGRES_DB: georevolt
+    volumes:
+      - pg-data:/var/lib/postgresql/data
+      - ./scripts/init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U georevolt -d georevolt"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  anvil:
+    image: ghcr.io/foundry-rs/foundry:latest
+    ports:
+      - "8545:8545"
+    entrypoint: ["anvil", "--host", "0.0.0.0"]
+    profiles:
+      - dev
+    restart: unless-stopped
+
+volumes:
+  pg-data:
+  app-data:

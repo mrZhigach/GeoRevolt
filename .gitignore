@@ -1,0 +1,31 @@
+node_modules/
+.next/
+out/
+
+# Env files
+.env
+.env.local
+.env.*.local
+
+# Agent configs
+.opencode/
+
+# Foundry
+broadcast/
+cache/
+
+# OS
+.DS_Store
+
+# Docs (generated)
+docs/
+
+# SQLite
+data/*.db
+data/*.db-wal
+data/*.db-shm
+
+# Forge broadcast logs (keep dry-run for reference)
+!/broadcast
+/broadcast/*/31337/
+/broadcast/**/dry-run/

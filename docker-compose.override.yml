@@ -1,0 +1,19 @@
+version: '3.8'
+
+services:
+  app:
+    build:
+      dockerfile: Dockerfile.dev
+    environment:
+      - NODE_ENV=development
+      - WATCHPACK_POLLING=true
+    volumes:
+      - ./:/app
+      - /app/node_modules
+      - /app/.next
+    ports:
+      - "3000:3000"
+
+  anvil:
+    profiles:
+      - dev
