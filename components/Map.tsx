@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import maplibregl, { GeoJSONSource } from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import MarketSidebar from './MarketSidebar';
@@ -20,6 +21,7 @@ interface MarketProperties {
 }
 
 export default function Map() {
+  const router = useRouter();
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<maplibregl.Map | null>(null);
   const [selectedMarket, setSelectedMarket] = useState<MarketProperties | null>(null);
@@ -110,16 +112,8 @@ export default function Map() {
 
         m.on('click', 'markets-layer', (e) => {
           const props = e.features?.[0]?.properties as Record<string, any>;
-          if (props) {
-            setSelectedMarket({
-              id: props.id,
-              contract_address: props.contract_address,
-              name: props.name,
-              description: props.description,
-              category: props.category,
-              status: props.status,
-              liquidity: props.liquidity ?? 0,
-            });
+          if (props?.contract_address) {
+            router.push(`/market/${props.contract_address}`);
           }
         });
 

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getAllMarkets, toGeoJSON, createMarket, createEvent, isDbAvailable } from '@/lib/db';
+import { getAllMarkets, toGeoJSON, createMarket, createEvent, isDbAvailable, getCountryCode, isCountryAllowed } from '@/lib/db';
 
 export async function GET() {
   try {
@@ -39,6 +39,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid coordinates' }, { status: 400 });
     }
 
+    const countryCode = await getCountryCode(body.lat, body.lng);
+    const allowed = await isCountryAllowed(countryCode);
+    if (!allowed) {
+      return NextResponse.json({ error: `Country ${countryCode} is not in the allowed list` }, { status: 403 });
+    }
+
     const market = await createMarket({
       contract_address: body.contract_address,
       name: body.name,
@@ -49,6 +55,7 @@ export async function POST(request: NextRequest) {
       end_time: body.end_time,
       resolution_time: body.resolution_time,
       liquidity: body.liquidity ?? 200,
+      simulated: body.simulated ?? false,
     });
 
     await createEvent({

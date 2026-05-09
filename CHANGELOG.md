@@ -2,6 +2,61 @@
 
 Все значимые изменения в проекте фиксируются здесь в хронологическом порядке (от новых к старым).
 
+## [2025-05-09] – Спринт 5.4 — Полировка, E2E, документация, подготовка к продакшену
+
+### Added
+- **e2e/admin.spec.ts** — Playwright-тесты для API (health, stats, markets, events, allowed-countries, frontend)
+- **scripts/e2e-sprint-5.sh** — Скрипт полной E2E-проверки спринта 5 (14 проверок: инфраструктура, API, батч-загрузка, цены, фронтенд)
+- **playwright.config.ts** — Конфигурация Playwright (headless, port 3000)
+
+### Changed
+- **app/api/admin/batch-upload/route.ts** — Добавлена поддержка человекочитаемых дат (ISO 8601) в дополнение к Unix timestamp; добавлена функция `toUnixTimestamp()`
+- **scripts/migrations/003_sprint5.sql** — Миграция для PostgreSQL: `price_history`, `allowed_countries`, `geocode_cache`, колонка `simulated`
+- **README.md** — Добавлены разделы «Пакетная загрузка рынков», «Управление разрешёнными странами», обновлён список компонентов и переменных окружения
+
+### DevOps / Infrastructure
+- **README.md** — Обновлены инструкции по деплою на Vercel, добавлены переменные `NEXT_PUBLIC_ADMIN_WALLET_ADDRESS`, `ADMIN_PRIVATE_KEY`
+- **scripts/migrations/** — Добавлена миграция 003 для всех новых таблиц спринта 5
+
+---
+
+## [2025-05-09] – Спринт 5.3 — Админ-панель, аналитика, пакетная загрузка, страны
+
+### Added
+- **lib/db.ts** — `simulated` колонка в `markets`, таблицы `allowed_countries` + `geocode_cache`; функции `getAdminStats()`, `getAdminMarkets()`, `getAllowedCountries()`, `setAllowedCountries()`, `getCountryCode()`, `isCountryAllowed()`, `getCountryCodeFromCache()`, `cacheCountryCode()`
+- **app/api/admin/stats/route.ts** — GET `/api/admin/stats` возвращает totalMarkets, totalLiquidityUSDC, activeMarkets, resolvedMarkets, topMarketsByLiquidity, liquidityByCategory
+- **app/api/admin/markets/route.ts** — GET `/api/admin/markets` с фильтрами (?status, ?category, ?search, ?page, ?limit) и пагинацией
+- **app/api/admin/batch-upload/route.ts** — POST `/api/admin/batch-upload` (multipart/form-data или JSON), парсинг CSV/GeoJSON, симуляция рынков (флаг simulated), макс. 10 записей
+- **app/api/admin/allowed-countries/route.ts** — GET/POST `/api/admin/allowed-countries` для управления списком разрешённых стран
+- **components/AdminDashboard.tsx** — дашборд с метриками (карточки), PieChart(liquidityByCategory), BarChart(topMarketsByLiquidity), кнопка Refresh
+- **components/AdminMarketsList.tsx** — таблица рынков с фильтрацией по статусу/категории/поиску, пагинация (10/стр), кнопки Resolve YES/NO
+- **components/AdminBatchUpload.tsx** — Drag & Drop загрузка CSV/GeoJSON, прогресс, отчёт о создании/ошибках
+- **components/AdminAllowedCountries.tsx** — управление списком стран (добавление по коду, удаление, подсказка с common codes)
+- **app/admin/page.tsx** — переписан как таб-контейнер (Dashboard / Markets / Batch Upload / Allowed Countries), проверка админ-кошелька
+
+### Changed
+- **lib/db.ts** — `Market` интерфейс + `normalizeRow` + `createMarket` + `toGeoJSON` теперь включают поле `simulated`
+- **app/api/markets/route.ts** — POST проверяет `isCountryAllowed()` через `getCountryCode()`, передаёт `simulated` в createMarket
+- **PLAN.md** — добавлен спринт 5.3 (4 задачи, 18 SP), 5.2 отмечен как завершённый
+
+---
+
+## [2025-05-09] – Спринт 5.2 — История цен, страница рынка, авто-снимки
+
+### Added
+- **lib/db.ts** — `price_history` таблица (SQLite + PostgreSQL): схема, индексы, функции `savePriceSnapshot()`, `getPriceHistory()`, `getMarketByContractAddress()`
+- **app/api/price-history/[address]/route.ts** — GET `/api/price-history/[address]` возвращает историю цен для контракта (последние 200 записей)
+- **app/api/price-snapshot/route.ts** — POST `/api/price-snapshot` сохраняет снимок цены (market_id, price_yes, price_no, liquidity)
+- **app/api/markets/by-address/[address]/route.ts** — GET `/api/markets/by-address/[address]` возвращает рынок по адресу контракта
+- **app/market/[address]/page.tsx** — страница детального просмотра рынка: название, описание, статус, график цен (recharts LineChart YES/NO), интерфейс Buy/Sell, авто-снятие цен каждые 60с
+- **scripts/migrations/002_price_history.sql** — миграция для добавления таблицы price_history
+
+### Changed
+- **Map.tsx** — клик по маркеру теперь ведёт на `/market/[contract_address]` вместо открытия боковой панели
+- **PLAN.md** — добавлен спринт 5.2 (4 задачи, 16 SP)
+
+---
+
 ## [2025-05-09] – Спринт 5.1 — Карта, liquidity, события
 
 ### Added

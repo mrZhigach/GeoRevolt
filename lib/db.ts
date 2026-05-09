@@ -67,6 +67,7 @@ function initSqliteSchema(db: any) {
       resolved INTEGER NOT NULL DEFAULT 0,
       outcome INTEGER,
       liquidity REAL NOT NULL DEFAULT 0,
+      simulated INTEGER NOT NULL DEFAULT 0,
       created_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
     CREATE INDEX IF NOT EXISTS idx_markets_lng_lat ON markets(lng, lat);
@@ -81,6 +82,30 @@ function initSqliteSchema(db: any) {
       created_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
     CREATE INDEX IF NOT EXISTS idx_events_created_at ON events(created_at DESC);
+  `);
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS price_history (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      market_id TEXT NOT NULL,
+      timestamp INTEGER NOT NULL,
+      price_yes REAL NOT NULL,
+      price_no REAL NOT NULL,
+      liquidity REAL
+    );
+    CREATE INDEX IF NOT EXISTS idx_price_history_market_time ON price_history(market_id, timestamp);
+  `);
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS allowed_countries (
+      country_code TEXT PRIMARY KEY
+    );
+  `);
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS geocode_cache (
+      lat REAL NOT NULL,
+      lng REAL NOT NULL,
+      country_code TEXT NOT NULL,
+      PRIMARY KEY (lat, lng)
+    );
   `);
 }
 
@@ -99,6 +124,7 @@ async function initPgSchema(pool: Pool) {
       resolved BOOLEAN NOT NULL DEFAULT FALSE,
       outcome BOOLEAN,
       liquidity DOUBLE PRECISION NOT NULL DEFAULT 0,
+      simulated BOOLEAN NOT NULL DEFAULT FALSE,
       created_at TIMESTAMP NOT NULL DEFAULT NOW()
     );
     CREATE INDEX IF NOT EXISTS idx_markets_lng_lat ON markets(lng, lat);
@@ -113,6 +139,30 @@ async function initPgSchema(pool: Pool) {
       created_at TIMESTAMP NOT NULL DEFAULT NOW()
     );
     CREATE INDEX IF NOT EXISTS idx_events_created_at ON events(created_at DESC);
+  `);
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS price_history (
+      id SERIAL PRIMARY KEY,
+      market_id TEXT NOT NULL,
+      timestamp BIGINT NOT NULL,
+      price_yes DOUBLE PRECISION NOT NULL,
+      price_no DOUBLE PRECISION NOT NULL,
+      liquidity DOUBLE PRECISION
+    );
+    CREATE INDEX IF NOT EXISTS idx_price_history_market_time ON price_history(market_id, timestamp);
+  `);
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS allowed_countries (
+      country_code TEXT PRIMARY KEY
+    );
+  `);
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS geocode_cache (
+      lat DOUBLE PRECISION NOT NULL,
+      lng DOUBLE PRECISION NOT NULL,
+      country_code TEXT NOT NULL,
+      PRIMARY KEY (lat, lng)
+    );
   `);
 }
 
@@ -130,6 +180,7 @@ function normalizeRow(row: DBRow): Market {
     resolved: usePostgres() ? row.resolved : Boolean(row.resolved),
     outcome: row.outcome === null ? null : Boolean(row.outcome),
     liquidity: Number(row.liquidity ?? 0),
+    simulated: usePostgres() ? row.simulated : Boolean(row.simulated),
     created_at: row.created_at,
   };
 }
@@ -147,6 +198,7 @@ export interface Market {
   resolved: boolean;
   outcome: boolean | null;
   liquidity: number;
+  simulated: boolean;
   created_at: string;
 }
 
@@ -168,6 +220,7 @@ export interface CreateMarketInput {
   end_time: number;
   resolution_time: number;
   liquidity?: number;
+  simulated?: boolean;
 }
 
 export async function getAllMarkets(): Promise<Market[]> {
@@ -196,8 +249,8 @@ export async function createMarket(input: CreateMarketInput): Promise<Market> {
   if (usePostgres()) {
     const pool = await getPgPool();
     const result = await pool.query(
-      `INSERT INTO markets (contract_address, name, description, category, lng, lat, end_time, resolution_time, liquidity)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+      `INSERT INTO markets (contract_address, name, description, category, lng, lat, end_time, resolution_time, liquidity, simulated)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
        RETURNING *`,
       [
         input.contract_address,
@@ -209,14 +262,15 @@ export async function createMarket(input: CreateMarketInput): Promise<Market> {
         input.end_time,
         input.resolution_time,
         input.liquidity ?? 200,
+        input.simulated ?? false,
       ]
     );
     return normalizeRow(result.rows[0]);
   }
   const db = await getSqliteDb();
   const stmt = db.prepare(`
-    INSERT INTO markets (contract_address, name, description, category, lng, lat, end_time, resolution_time, liquidity)
-    VALUES (@contract_address, @name, @description, @category, @lng, @lat, @end_time, @resolution_time, @liquidity)
+    INSERT INTO markets (contract_address, name, description, category, lng, lat, end_time, resolution_time, liquidity, simulated)
+    VALUES (@contract_address, @name, @description, @category, @lng, @lat, @end_time, @resolution_time, @liquidity, @simulated)
   `);
   const result = stmt.run({
     contract_address: input.contract_address,
@@ -228,6 +282,7 @@ export async function createMarket(input: CreateMarketInput): Promise<Market> {
     end_time: input.end_time,
     resolution_time: input.resolution_time,
     liquidity: input.liquidity ?? 200,
+    simulated: input.simulated ? 1 : 0,
   });
   return (await getMarketById(result.lastInsertRowid as number)) as Market;
 }
@@ -272,6 +327,7 @@ export function toGeoJSON(markets: Market[]): GeoJSON.FeatureCollection {
         resolved: m.resolved,
         outcome: m.outcome,
         liquidity: m.liquidity,
+        simulated: m.simulated,
       },
     })),
   };
@@ -329,6 +385,290 @@ async function getEventById(id: number): Promise<AppEvent | undefined> {
   const db = await getSqliteDb();
   const row = db.prepare('SELECT * FROM events WHERE id = ?').get(id) as DBRow | undefined;
   return row ? normalizeEventRow(row) : undefined;
+}
+
+export interface PriceSnapshot {
+  id: number;
+  market_id: string;
+  timestamp: number;
+  price_yes: number;
+  price_no: number;
+  liquidity: number | null;
+}
+
+export async function getMarketByContractAddress(contractAddress: string): Promise<Market | undefined> {
+  if (usePostgres()) {
+    const pool = await getPgPool();
+    const result = await pool.query('SELECT * FROM markets WHERE contract_address = $1', [contractAddress]);
+    return result.rows.length ? normalizeRow(result.rows[0]) : undefined;
+  }
+  const db = await getSqliteDb();
+  const row = db.prepare('SELECT * FROM markets WHERE contract_address = ?').get(contractAddress) as DBRow | undefined;
+  return row ? normalizeRow(row) : undefined;
+}
+
+export async function savePriceSnapshot(
+  marketId: string,
+  priceYes: number,
+  priceNo: number,
+  liquidity: number | null = null
+): Promise<PriceSnapshot> {
+  const now = Math.floor(Date.now() / 1000);
+  if (usePostgres()) {
+    const pool = await getPgPool();
+    const result = await pool.query(
+      `INSERT INTO price_history (market_id, timestamp, price_yes, price_no, liquidity)
+       VALUES ($1, $2, $3, $4, $5) RETURNING *`,
+      [marketId, now, priceYes, priceNo, liquidity]
+    );
+    return normalizePriceSnapshot(result.rows[0]);
+  }
+  const db = await getSqliteDb();
+  const stmt = db.prepare(`
+    INSERT INTO price_history (market_id, timestamp, price_yes, price_no, liquidity)
+    VALUES (?, ?, ?, ?, ?)
+  `);
+  stmt.run(marketId, now, priceYes, priceNo, liquidity);
+  const row = db.prepare('SELECT * FROM price_history WHERE id = last_insert_rowid()').get() as DBRow;
+  return normalizePriceSnapshot(row);
+}
+
+export async function getPriceHistory(
+  marketId: string,
+  limit: number = 100
+): Promise<PriceSnapshot[]> {
+  if (usePostgres()) {
+    const pool = await getPgPool();
+    const result = await pool.query(
+      'SELECT * FROM price_history WHERE market_id = $1 ORDER BY timestamp DESC LIMIT $2',
+      [marketId, limit]
+    );
+    return result.rows.map(normalizePriceSnapshot);
+  }
+  const db = await getSqliteDb();
+  const rows = db.prepare(
+    'SELECT * FROM price_history WHERE market_id = ? ORDER BY timestamp DESC LIMIT ?'
+  ).all(marketId, limit) as DBRow[];
+  return rows.map(normalizePriceSnapshot);
+}
+
+function normalizePriceSnapshot(row: DBRow): PriceSnapshot {
+  return {
+    id: row.id,
+    market_id: row.market_id,
+    timestamp: Number(row.timestamp),
+    price_yes: Number(row.price_yes),
+    price_no: Number(row.price_no),
+    liquidity: row.liquidity === null ? null : Number(row.liquidity),
+  };
+}
+
+export interface AdminStats {
+  totalMarkets: number;
+  totalLiquidityUSDC: number;
+  activeMarkets: number;
+  resolvedMarkets: number;
+  topMarketsByLiquidity: { name: string; liquidity: number }[];
+  liquidityByCategory: Record<string, number>;
+}
+
+export async function getAdminStats(): Promise<AdminStats> {
+  if (usePostgres()) {
+    const pool = await getPgPool();
+    const totalMarkets = (await pool.query('SELECT COUNT(*) as c FROM markets')).rows[0].c;
+    const totalLiq = (await pool.query('SELECT COALESCE(SUM(liquidity),0) as s FROM markets')).rows[0].s;
+    const active = (await pool.query('SELECT COUNT(*) as c FROM markets WHERE resolved=false AND end_time > EXTRACT(EPOCH FROM NOW())')).rows[0].c;
+    const resolved = (await pool.query('SELECT COUNT(*) as c FROM markets WHERE resolved=true')).rows[0].c;
+    const topRows = (await pool.query('SELECT name, liquidity FROM markets ORDER BY liquidity DESC LIMIT 5')).rows;
+    const catRows = (await pool.query('SELECT category, SUM(liquidity) as s FROM markets GROUP BY category ORDER BY s DESC')).rows;
+    const liquidityByCategory: Record<string, number> = {};
+    for (const r of catRows) liquidityByCategory[r.category] = Number(r.s);
+    return {
+      totalMarkets: Number(totalMarkets),
+      totalLiquidityUSDC: Number(totalLiq),
+      activeMarkets: Number(active),
+      resolvedMarkets: Number(resolved),
+      topMarketsByLiquidity: topRows.map((r: any) => ({ name: r.name, liquidity: Number(r.liquidity) })),
+      liquidityByCategory,
+    };
+  }
+  const db = await getSqliteDb();
+  const totalMarkets = (db.prepare('SELECT COUNT(*) as c FROM markets').get() as any).c;
+  const totalLiq = (db.prepare('SELECT COALESCE(SUM(liquidity),0) as s FROM markets').get() as any).s;
+  const now = Date.now() / 1000;
+  const active = (db.prepare('SELECT COUNT(*) as c FROM markets WHERE resolved=0 AND end_time > ?').get(now) as any).c;
+  const resolved = (db.prepare('SELECT COUNT(*) as c FROM markets WHERE resolved=1').get() as any).c;
+  const topRows = db.prepare('SELECT name, liquidity FROM markets ORDER BY liquidity DESC LIMIT 5').all() as any[];
+  const catRows = db.prepare('SELECT category, SUM(liquidity) as s FROM markets GROUP BY category ORDER BY s DESC').all() as any[];
+  const liquidityByCategory: Record<string, number> = {};
+  for (const r of catRows) liquidityByCategory[r.category] = Number(r.s);
+  return {
+    totalMarkets: totalMarkets as number,
+    totalLiquidityUSDC: totalLiq as number,
+    activeMarkets: active as number,
+    resolvedMarkets: resolved as number,
+    topMarketsByLiquidity: topRows.map((r: any) => ({ name: r.name, liquidity: Number(r.liquidity) })),
+    liquidityByCategory,
+  };
+}
+
+export interface AdminMarketsQuery {
+  status?: 'open' | 'closed' | 'resolved';
+  category?: string;
+  search?: string;
+  page?: number;
+  limit?: number;
+}
+
+export interface AdminMarketsResult {
+  markets: Market[];
+  total: number;
+  page: number;
+  limit: number;
+}
+
+export async function getAdminMarkets(query: AdminMarketsQuery): Promise<AdminMarketsResult> {
+  const conditions: string[] = [];
+  const params: any[] = [];
+  let paramIdx = 1;
+
+  if (query.status === 'resolved') {
+    conditions.push('resolved = ' + (usePostgres() ? 'TRUE' : '1'));
+  } else if (query.status === 'open') {
+    if (usePostgres()) {
+      conditions.push('resolved = FALSE AND end_time > EXTRACT(EPOCH FROM NOW())');
+    } else {
+      conditions.push('resolved = 0 AND end_time > ?');
+      params.push(Date.now() / 1000);
+    }
+  } else if (query.status === 'closed') {
+    if (usePostgres()) {
+      conditions.push('resolved = FALSE AND end_time <= EXTRACT(EPOCH FROM NOW())');
+    } else {
+      conditions.push('resolved = 0 AND end_time <= ?');
+      params.push(Date.now() / 1000);
+    }
+  }
+
+  if (query.category) {
+    conditions.push('category = ' + (usePostgres() ? `$${paramIdx++}` : '?'));
+    params.push(query.category);
+  }
+
+  if (query.search) {
+    conditions.push('name LIKE ' + (usePostgres() ? `$${paramIdx++}` : '?'));
+    params.push(`%${query.search}%`);
+  }
+
+  const where = conditions.length > 0 ? 'WHERE ' + conditions.join(' AND ') : '';
+  const page = query.page ?? 1;
+  const limit = query.limit ?? 10;
+  const offset = (page - 1) * limit;
+
+  if (usePostgres()) {
+    const pool = await getPgPool();
+    const countResult = await pool.query(`SELECT COUNT(*) as c FROM markets ${where}`, params);
+    const total = Number(countResult.rows[0].c);
+    const result = await pool.query(
+      `SELECT * FROM markets ${where} ORDER BY created_at DESC LIMIT $${paramIdx} OFFSET $${paramIdx + 1}`,
+      [...params, limit, offset]
+    );
+    return { markets: result.rows.map(normalizeRow), total, page, limit };
+  }
+  const db = await getSqliteDb();
+  const countRow = db.prepare(`SELECT COUNT(*) as c FROM markets ${where}`).get(...params) as any;
+  const total = countRow.c as number;
+  const rows = db.prepare(`SELECT * FROM markets ${where} ORDER BY created_at DESC LIMIT ? OFFSET ?`).all(...params, limit, offset) as DBRow[];
+  return { markets: rows.map(normalizeRow), total, page, limit };
+}
+
+export async function getAllowedCountries(): Promise<string[]> {
+  if (usePostgres()) {
+    const pool = await getPgPool();
+    const result = await pool.query('SELECT country_code FROM allowed_countries ORDER BY country_code');
+    return result.rows.map((r: any) => r.country_code);
+  }
+  const db = await getSqliteDb();
+  const rows = db.prepare('SELECT country_code FROM allowed_countries ORDER BY country_code').all() as any[];
+  return rows.map((r: any) => r.country_code);
+}
+
+export async function setAllowedCountries(countries: string[]): Promise<void> {
+  if (usePostgres()) {
+    const pool = await getPgPool();
+    await pool.query('DELETE FROM allowed_countries');
+    for (const code of countries) {
+      await pool.query('INSERT INTO allowed_countries (country_code) VALUES ($1)', [code.toUpperCase()]);
+    }
+    return;
+  }
+  const db = await getSqliteDb();
+  db.prepare('DELETE FROM allowed_countries').run();
+  const stmt = db.prepare('INSERT INTO allowed_countries (country_code) VALUES (?)');
+  for (const code of countries) {
+    stmt.run(code.toUpperCase());
+  }
+}
+
+export async function getCountryCodeFromCache(lat: number, lng: number): Promise<string | null> {
+  const roundedLat = Math.round(lat * 100) / 100;
+  const roundedLng = Math.round(lng * 100) / 100;
+  if (usePostgres()) {
+    const pool = await getPgPool();
+    const result = await pool.query(
+      'SELECT country_code FROM geocode_cache WHERE lat = $1 AND lng = $2',
+      [roundedLat, roundedLng]
+    );
+    return result.rows.length > 0 ? result.rows[0].country_code : null;
+  }
+  const db = await getSqliteDb();
+  const row = db.prepare('SELECT country_code FROM geocode_cache WHERE lat = ? AND lng = ?').get(roundedLat, roundedLng) as any;
+  return row ? row.country_code : null;
+}
+
+export async function cacheCountryCode(lat: number, lng: number, countryCode: string): Promise<void> {
+  const roundedLat = Math.round(lat * 100) / 100;
+  const roundedLng = Math.round(lng * 100) / 100;
+  if (usePostgres()) {
+    const pool = await getPgPool();
+    await pool.query(
+      `INSERT INTO geocode_cache (lat, lng, country_code) VALUES ($1, $2, $3)
+       ON CONFLICT (lat, lng) DO UPDATE SET country_code = $3`,
+      [roundedLat, roundedLng, countryCode]
+    );
+    return;
+  }
+  const db = await getSqliteDb();
+  db.prepare('INSERT OR REPLACE INTO geocode_cache (lat, lng, country_code) VALUES (?, ?, ?)').run(roundedLat, roundedLng, countryCode);
+}
+
+export async function getCountryCode(lat: number, lng: number): Promise<string> {
+  const cached = await getCountryCodeFromCache(lat, lng);
+  if (cached) return cached;
+
+  try {
+    const res = await fetch(
+      `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lng}&localityLanguage=en`,
+      { signal: AbortSignal.timeout(3000) }
+    );
+    if (res.ok) {
+      const data = await res.json();
+      const code = (data.countryCode || 'XX') as string;
+      await cacheCountryCode(lat, lng, code);
+      return code;
+    }
+  } catch {
+    // geocoding failed, return unknown
+  }
+
+  await cacheCountryCode(lat, lng, 'XX');
+  return 'XX';
+}
+
+export async function isCountryAllowed(countryCode: string): Promise<boolean> {
+  const allowed = await getAllowedCountries();
+  if (allowed.length === 0) return true;
+  return allowed.includes(countryCode);
 }
 
 export async function closeDb() {

@@ -1,5 +1,6 @@
 # GeoRevolt
 
+[![Version](https://img.shields.io/badge/version-1.1.0-green.svg)](https://github.com/mrZhigach/GeoRevolt/releases/tag/v1.1.0)
 [![License: AGPL v3](https://img.shields.io/badge/License-AGPL%20v3-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
 [![CI](https://github.com/mrZhigach/GeoRevolt/actions/workflows/test.yml/badge.svg)](https://github.com/mrZhigach/GeoRevolt/actions/workflows/test.yml)
 
@@ -22,9 +23,18 @@
 В боковой панели отображается ваша позиция. Нажмите **Sell**, чтобы продать токены обратно в пул.
 
 ### 5. Администрирование (для владельца фабрики)
-Перейдите на `/admin`. После наступления времени разрешения нажмите **Resolve YES** или **Resolve NO**. Транзакция отправляется от вашего кошелька через MarketFactory.
+Перейдите на `/admin`. После наступления времени разрешения нажмите **Resolve YES** или **Resolve NO** во вкладке **Markets**. Транзакция отправляется от вашего кошелька через MarketFactory.
 
-### 6. Получите выигрыш
+### 6. Пакетная загрузка рынков
+Перейдите на `/admin` → вкладка **Batch Upload**. Загрузите CSV или GeoJSON файл:
+- **CSV**: колонки `name, description, category, lng, lat, endTime, resolutionTime, liquidity` (endTime/resolutionTime — Unix epoch или ISO 8601)
+- **GeoJSON**: FeatureCollection с точками, properties: `name, description, category, endTime, resolutionTime, liquidity`
+Максимум 10 записей за раз. Рынки создаются в симуляционном режиме (без on-chain деплоя), если не задан `ADMIN_PRIVATE_KEY`.
+
+### 7. Управление разрешёнными странами
+Перейдите на `/admin` → вкладка **Allowed Countries**. Добавьте ISO-3166-1 alpha-2 коды стран, где разрешено создание рынков. При создании рынка (через карту или пакетную загрузку) координаты проверяются через reverse geocoding. Если страна не в списке — создание отклоняется.
+
+### 8. Получите выигрыш
 Если рынок разрешён в вашу пользу, в боковой панели появится кнопка **Redeem Winnings**. Нажмите её, чтобы получить USDC из пула.
 
 ## Для разработчика
@@ -93,11 +103,21 @@ bash scripts/e2e-fork.sh
 ```
 ├── app/                  # Next.js 14 App Router
 │   ├── api/markets/      # REST API для рынков
-│   └── admin/            # Админ-панель
+│   ├── api/admin/        # Админ API (stats, markets, batch-upload, allowed-countries)
+│   ├── api/events/       # Лента событий
+│   ├── api/price-history/ # История цен
+│   ├── api/price-snapshot/ # Снимки цен
+│   ├── admin/            # Админ-панель (Dashboard, Markets, Batch Upload, Countries)
+│   └── market/           # Страница детального просмотра рынка
 ├── components/           # React компоненты
 │   ├── Map.tsx           # Карта MapLibre
 │   ├── MarketSidebar.tsx # Покупка/продажа
-│   ├── AdminPanel.tsx    # Админ-панель
+│   ├── AdminDashboard.tsx # Дашборд с recharts
+│   ├── AdminMarketsList.tsx # Таблица рынков с фильтрами
+│   ├── AdminBatchUpload.tsx # Drag & Drop загрузка
+│   ├── AdminAllowedCountries.tsx # Управление странами
+│   ├── EventFeed.tsx     # Лента событий
+│   ├── CreateMarketModal.tsx # Создание рынка
 │   └── Web3Provider.tsx  # wagmi provider
 ├── src/                  # Solidity контракты
 │   ├── Market.sol        # AMM рынок предсказаний
@@ -179,6 +199,8 @@ docker compose -f docker-compose.prod.yml up -d
 | `NEXT_PUBLIC_MARKET_FACTORY_ADDRESS` | Адрес MarketFactory | да |
 | `NEXT_PUBLIC_MOCK_USDC_ADDRESS` | Адрес USDC | да |
 | `DB_PASSWORD` | Пароль PostgreSQL | да |
+| `NEXT_PUBLIC_ADMIN_WALLET_ADDRESS` | Адрес admin-кошелька (ограничивает доступ к /admin) | нет |
+| `ADMIN_PRIVATE_KEY` | Приватный ключ для on-chain деплоя при батч-загрузке (без него — симуляция) | нет |
 
 ## Деплой на Vercel
 

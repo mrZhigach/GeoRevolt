@@ -39,6 +39,7 @@
 | Миграция | Версия | Применена (дата) | Хеш файла |
 |----------|--------|------------------|-----------|
 | `001_init.sql` | 1.0.0 | – | – |
+| `002_price_history.sql` | 1.0 | 2025-05-09 | Встроена в lib/db.ts (initSqliteSchema/initPgSchema) |
 
 ## Документация
 
@@ -72,6 +73,42 @@
 | `vercel.json` | 1.0 | 2025-05-09 | Конфигурация Vercel (Next.js, env) |
 | `SOCIAL_POST.md` | 1.0 | 2025-05-09 | Посты для соцсетей (EN/RU) |
 | Release v1.0.0 | 1.0.0 | 2025-05-09 | https://github.com/mrZhigach/GeoRevolt/releases/tag/v1.0.0 |
+
+## API (Sprint 5.2)
+| Эндпоинт | Описание | Дата |
+|----------|----------|------|
+| `GET /api/price-history/[address]` | История цен для рынка (200 записей) | 2025-05-09 |
+| `POST /api/price-snapshot` | Сохранение снимка цены (price_yes, price_no) | 2025-05-09 |
+| `GET /api/markets/by-address/[address]` | Рынок по адресу контракта | 2025-05-09 |
+
+## API (Sprint 5.3 — Админка)
+| Эндпоинт | Описание | Дата |
+|----------|----------|------|
+| `GET /api/admin/stats` | Аналитика: метрики, топ рынков, liquidity по категориям | 2025-05-09 |
+| `GET /api/admin/markets` | Список рынков с фильтрацией и пагинацией | 2025-05-09 |
+| `POST /api/admin/batch-upload` | Пакетная загрузка CSV/GeoJSON | 2025-05-09 |
+| `GET/POST /api/admin/allowed-countries` | Управление разрешёнными странами | 2025-05-09 |
+
+## Фронтенд (Sprint 5.2)
+| Компонент | Описание | Дата |
+|-----------|----------|------|
+| `app/market/[address]/page.tsx` | Страница рынка: recharts график, Buy/Sell, авто-снимки | 2025-05-09 |
+
+## Фронтенд (Sprint 5.3 — Админка)
+| Компонент | Описание | Дата |
+|-----------|----------|------|
+| `components/AdminDashboard.tsx` | Дашборд: метрики, PieChart, BarChart, Refresh | 2025-05-09 |
+| `components/AdminMarketsList.tsx` | Таблица рынков: фильтры, пагинация, кнопки Resolve | 2025-05-09 |
+| `components/AdminBatchUpload.tsx` | Drag & Drop загрузка CSV/GeoJSON с отчётом | 2025-05-09 |
+| `components/AdminAllowedCountries.tsx` | Управление разрешёнными странами | 2025-05-09 |
+| `app/admin/page.tsx` | Таб-контейнер админки (4 вкладки) | 2025-05-09 |
+
+## Миграции БД (Sprint 5.3)
+| Миграция | Версия | Применена | Описание |
+|----------|--------|-----------|----------|
+| `simulated` колонка | 1.0 | 2025-05-09 | Добавлена в markets (SQLite + PG) |
+| `allowed_countries` таблица | 1.0 | 2025-05-09 | Хранит ISO-3166-1 alpha-2 коды |
+| `geocode_cache` таблица | 1.0 | 2025-05-09 | Кэш reverse geocoding (lat, lng → country) |
 
 ## Прочее
 - **Конфигурация OpenCode:** `.opencode/` – версия от 2025-05-11.

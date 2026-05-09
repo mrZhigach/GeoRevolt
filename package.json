@@ -20,11 +20,13 @@
     "pmtiles": "^4.4.1",
     "react": "^18.3.0",
     "react-dom": "^18.3.0",
+    "recharts": "^3.8.1",
     "viem": "^2.48.11",
     "wagmi": "^2.19.5"
   },
   "devDependencies": {
     "@next/eslint-plugin-next": "^14.2.0",
+    "@playwright/test": "^1.59.1",
     "@types/better-sqlite3": "^7.6.0",
     "@types/geojson": "^7946.0.16",
     "@types/jest": "^29.5.0",
