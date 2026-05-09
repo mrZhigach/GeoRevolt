@@ -1,19 +1,20 @@
-# План-график GeoRevolt – Спринт 4 (Масштабирование и безопасность)
+# План-график GeoRevolt – Спринт 5 (Карта, маркеры, события)
 
-**Длительность:** 2025-06-08 – 2025-06-21  
-**Цель:** Аудит безопасности, нагрузочное тестирование, production-деплой, мониторинг.
-**Story Points (всего):** 26
+**Длительность:** 2025-05-09 – 2025-05-23  
+**Цель:** Улучшение карты (PMTiles/OSM, размер маркеров), API liquidity, лента событий.
+**Story Points (всего):** 21
 
 | ID | Задача | SP | Статус | Агент | Дедлайн | Комментарий |
 |----|--------|----|--------|-------|---------|--------------|
-| 17 | **Аудит безопасности смарт-контрактов** | 8 | [x] | @security-auditor | 2025-06-14 | SECURITY_AUDIT.md создан. Slither + ручной анализ. Mythril недоступен |
-| 18 | **Нагрузочное тестирование** | 5 | [x] | @performance-engineer, @qa-automation-engineer | 2025-06-14 | scripts/load-test.sh + LOAD_TEST_REPORT.md |
-| 19 | **Production-деплой** | 8 | [x] | @devops | 2025-06-21 | docker-compose.prod.yml + CI/CD deploy job + README |
-| 20 | **Мониторинг и алертинг** | 5 | [x] | @devops | 2025-06-21 | /api/health + healthcheck в compose + секция README |
+| 21 | **PMTiles / OSM тайлы для карты** | 5 | [x] | @cartography-engineer | 2025-05-12 | scripts/generate-pmtiles.sh + style.json с OpenFreeMap |
+| 22 | **Liquidity в API + маркеры** | 5 | [x] | @backend-dev, @frontend-dev | 2025-05-14 | Колонка liquidity, обновление toGeoJSON, interpolate-маркеры |
+| 23 | **Лента событий (events)** | 5 | [x] | @backend-dev, @frontend-dev | 2025-05-16 | GET /api/events + EventFeed компонент |
+| 24 | **Логирование событий** | 3 | [x] | @backend-dev | 2025-05-18 | createEvent при создании рынка |
+| 25 | **Market creation UI + API** | 3 | [x] | @frontend-dev | 2025-05-18 | CreateMarketModal → POST /api/markets → EventFeed |
 
 ---
 
-## Спринт 3 (Пользовательский опыт и демо) — завершён ✅
+## Спринт 4 (Масштабирование и безопасность) — завершён ✅
 
 **Длительность:** 2025-05-25 – 2025-06-07  
 **Результат:** Документация, демо-сценарии, E2E на forked Amoy.

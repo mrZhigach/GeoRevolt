@@ -5,6 +5,7 @@ import maplibregl, { GeoJSONSource } from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import MarketSidebar from './MarketSidebar';
 import CreateMarketModal from './CreateMarketModal';
+import EventFeed from './EventFeed';
 import { useAccount, useConnect, useDisconnect } from 'wagmi';
 import { injected } from 'wagmi/connectors';
 
@@ -15,6 +16,7 @@ interface MarketProperties {
   description: string;
   category: string;
   status: string;
+  liquidity: number;
 }
 
 export default function Map() {
@@ -32,10 +34,9 @@ export default function Map() {
 
     const m = new maplibregl.Map({
       container: mapContainer.current,
-      style: 'https://demotiles.maplibre.org/style.json',
+      style: '/data/style.json',
       center: [40, 55],
       zoom: 3,
-      attributionControl: false,
     });
 
     m.addControl(new maplibregl.NavigationControl(), 'top-right');
@@ -86,8 +87,21 @@ export default function Map() {
           source: 'markets',
           filter: ['!', ['has', 'point_count']],
           paint: {
-            'circle-radius': 8,
-            'circle-color': '#22c55e',
+            'circle-radius': [
+              'interpolate', ['linear'], ['number', ['get', 'liquidity'], 0],
+              0, 6,
+              200, 10,
+              1000, 16,
+              5000, 22,
+              10000, 30,
+            ],
+            'circle-color': [
+              'interpolate', ['linear'], ['number', ['get', 'liquidity'], 0],
+              0, '#94a3b8',
+              200, '#22c55e',
+              1000, '#16a34a',
+              5000, '#15803d',
+            ],
             'circle-stroke-width': 2,
             'circle-stroke-color': '#ffffff',
             'circle-opacity': 0.9,
@@ -104,6 +118,7 @@ export default function Map() {
               description: props.description,
               category: props.category,
               status: props.status,
+              liquidity: props.liquidity ?? 0,
             });
           }
         });
@@ -178,6 +193,7 @@ export default function Map() {
           window.location.reload();
         }} />
       )}
+      <EventFeed />
     </div>
   );
 }

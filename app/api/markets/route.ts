@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getAllMarkets, toGeoJSON, createMarket, isDbAvailable } from '@/lib/db';
+import { getAllMarkets, toGeoJSON, createMarket, createEvent, isDbAvailable } from '@/lib/db';
 
 export async function GET() {
   try {
@@ -48,6 +48,13 @@ export async function POST(request: NextRequest) {
       lat: body.lat,
       end_time: body.end_time,
       resolution_time: body.resolution_time,
+      liquidity: body.liquidity ?? 200,
+    });
+
+    await createEvent({
+      market_id: market.id,
+      event_type: 'market_created',
+      data: { name: market.name, contract_address: market.contract_address, liquidity: market.liquidity },
     });
 
     return NextResponse.json(market, { status: 201 });

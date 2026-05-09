@@ -52,6 +52,22 @@ export default function CreateMarketModal({ coordinates, onClose, onCreated }: P
         args: [name, description || '', BigInt(endTs), BigInt(resTs), BigInt(200000000)],
       });
 
+      await fetch('/api/markets', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contract_address: '0x0000000000000000000000000000000000000001',
+          name,
+          description,
+          category,
+          lng: coordinates.lng,
+          lat: coordinates.lat,
+          end_time: endTs,
+          resolution_time: resTs,
+          liquidity: 200,
+        }),
+      });
+
       await onCreated();
       onClose();
     } catch (e: any) {

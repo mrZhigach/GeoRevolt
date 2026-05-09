@@ -2,6 +2,27 @@
 
 Все значимые изменения в проекте фиксируются здесь в хронологическом порядке (от новых к старым).
 
+## [2025-05-09] – Спринт 5.1 — Карта, liquidity, события
+
+### Added
+- **public/data/style.json** — стиль карты на OpenFreeMap (OSM) со слоями: здания, дороги, вода, ландшафт, подписи
+- **scripts/generate-pmtiles.sh** — скрипт генерации PMTiles для России через Planetiler (требует 48 GB RAM)
+- **lib/db.ts** — `liquidity REAL` колонка в `markets`, авто-заполнение при создании
+- **lib/db.ts** — таблица `events` + функции `getRecentEvents()`, `createEvent()` для ленты событий
+- **app/api/events/route.ts** — GET `/api/events` возвращает последние 20 событий
+- **components/EventFeed.tsx** — боковая панель "Live Events" с автообновлением каждые 15с
+- **POST /api/markets** — авто-создание события `market_created` при создании рынка
+
+### Changed
+- **Map.tsx** — стиль карты переключён с demotiles на `/data/style.json` (OpenFreeMap OSM)
+- **Map.tsx** — `circle-radius` маркеров теперь через `interpolate` по `liquidity` (6–30px)
+- **Map.tsx** — цвет маркеров градиент: серый (0) → зелёный (200+) → тёмно-зелёный (5000+)
+- **Map.tsx** — добавлен `<EventFeed />` компонент на карту
+- **components/CreateMarketModal.tsx** — POST /api/markets с liquidity после деплоя контракта
+- **lib/db.ts** — `toGeoJSON()` включает поле `liquidity` в properties
+
+---
+
 ## [2025-05-09] – Bugfix: API, map markers, market creation UI
 
 ### Added

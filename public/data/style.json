@@ -1,0 +1,98 @@
+{
+  "version": 8,
+  "name": "GeoRevolt — OpenFreeMap",
+  "sources": {
+    "osm": {
+      "type": "vector",
+      "url": "https://tiles.openfreemap.org/styles/liberty"
+    }
+  },
+  "layers": [
+    {
+      "id": "background",
+      "type": "background",
+      "paint": { "background-color": "#f8f4f0" }
+    },
+    {
+      "id": "landuse",
+      "type": "fill",
+      "source": "osm",
+      "source-layer": "landuse",
+      "paint": {
+        "fill-color": [
+          "match",
+          ["get", "class"],
+          "park", "#d0e5c8",
+          "forest", "#c8e0c0",
+          "residential", "#e8e0d8",
+          "commercial", "#e8dcd0",
+          "industrial", "#e0d8d8",
+          "#f0ece8"
+        ]
+      }
+    },
+    {
+      "id": "water",
+      "type": "fill",
+      "source": "osm",
+      "source-layer": "water",
+      "paint": { "fill-color": "#aad3df" }
+    },
+    {
+      "id": "buildings",
+      "type": "fill",
+      "source": "osm",
+      "source-layer": "building",
+      "minzoom": 14,
+      "paint": {
+        "fill-color": "#d4c8b8",
+        "fill-opacity": 0.8,
+        "fill-outline-color": "#c0b4a4"
+      }
+    },
+    {
+      "id": "roads",
+      "type": "line",
+      "source": "osm",
+      "source-layer": "transportation",
+      "minzoom": 10,
+      "paint": {
+        "line-color": [
+          "match",
+          ["get", "class"],
+          "motorway", "#f8b0b0",
+          "trunk", "#f8d0a0",
+          "primary", "#f0e8c0",
+          "#e0e0e0"
+        ],
+        "line-width": [
+          "interpolate", ["linear"], ["zoom"],
+          10, 1,
+          16, 8
+        ]
+      }
+    },
+    {
+      "id": "places",
+      "type": "symbol",
+      "source": "osm",
+      "source-layer": "place",
+      "minzoom": 6,
+      "layout": {
+        "text-field": "{name:latin}\n{name:nonlatin}",
+        "text-size": [
+          "interpolate", ["linear"], ["zoom"],
+          6, 10,
+          14, 16
+        ],
+        "text-font": ["Noto Sans Regular"],
+        "text-anchor": "center"
+      },
+      "paint": {
+        "text-halo-color": "#ffffff",
+        "text-halo-width": 2,
+        "text-color": "#444444"
+      }
+    }
+  ]
+}

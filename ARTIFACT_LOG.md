@@ -18,7 +18,14 @@
 |------|-----|--------|--------------|----------------|
 | `public/data/russia-detail.pmtiles` | не сгенерирован | – | planet.osm 2025-05-01 | – |
 
-**Команда генерации:** `java -jar planetiler.jar --download --area=russia --output=russia-detail.pmtiles`
+**Команда генерации:** `java -Xmx48g -jar planetiler.jar --download --area=russia --output=public/data/russia-detail.pmtiles --maxzoom=15`
+
+## Online карта (Sprint 5)
+
+| Артефакт | Версия | Дата | Описание |
+|----------|--------|------|----------|
+| `public/data/style.json` | 1.0 | 2025-05-09 | OpenFreeMap стиль: здания, дороги, вода, подписи |
+| `scripts/generate-pmtiles.sh` | 1.0 | 2025-05-09 | Скрипт генерации PMTiles (Planetiler, 48GB RAM) |
 
 ## Docker-образы
 

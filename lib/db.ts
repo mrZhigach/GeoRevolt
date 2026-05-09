@@ -66,10 +66,21 @@ function initSqliteSchema(db: any) {
       resolution_time INTEGER NOT NULL,
       resolved INTEGER NOT NULL DEFAULT 0,
       outcome INTEGER,
+      liquidity REAL NOT NULL DEFAULT 0,
       created_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
     CREATE INDEX IF NOT EXISTS idx_markets_lng_lat ON markets(lng, lat);
     CREATE INDEX IF NOT EXISTS idx_markets_resolved ON markets(resolved);
+  `);
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS events (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      market_id INTEGER,
+      event_type TEXT NOT NULL,
+      data TEXT NOT NULL DEFAULT '{}',
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_events_created_at ON events(created_at DESC);
   `);
 }
 
@@ -87,10 +98,21 @@ async function initPgSchema(pool: Pool) {
       resolution_time BIGINT NOT NULL,
       resolved BOOLEAN NOT NULL DEFAULT FALSE,
       outcome BOOLEAN,
+      liquidity DOUBLE PRECISION NOT NULL DEFAULT 0,
       created_at TIMESTAMP NOT NULL DEFAULT NOW()
     );
     CREATE INDEX IF NOT EXISTS idx_markets_lng_lat ON markets(lng, lat);
     CREATE INDEX IF NOT EXISTS idx_markets_resolved ON markets(resolved);
+  `);
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS events (
+      id SERIAL PRIMARY KEY,
+      market_id INTEGER REFERENCES markets(id),
+      event_type TEXT NOT NULL,
+      data JSONB NOT NULL DEFAULT '{}',
+      created_at TIMESTAMP NOT NULL DEFAULT NOW()
+    );
+    CREATE INDEX IF NOT EXISTS idx_events_created_at ON events(created_at DESC);
   `);
 }
 
@@ -107,6 +129,7 @@ function normalizeRow(row: DBRow): Market {
     resolution_time: row.resolution_time,
     resolved: usePostgres() ? row.resolved : Boolean(row.resolved),
     outcome: row.outcome === null ? null : Boolean(row.outcome),
+    liquidity: Number(row.liquidity ?? 0),
     created_at: row.created_at,
   };
 }
@@ -123,6 +146,15 @@ export interface Market {
   resolution_time: number;
   resolved: boolean;
   outcome: boolean | null;
+  liquidity: number;
+  created_at: string;
+}
+
+export interface AppEvent {
+  id: number;
+  market_id: number | null;
+  event_type: string;
+  data: Record<string, any>;
   created_at: string;
 }
 
@@ -135,6 +167,7 @@ export interface CreateMarketInput {
   lat: number;
   end_time: number;
   resolution_time: number;
+  liquidity?: number;
 }
 
 export async function getAllMarkets(): Promise<Market[]> {
@@ -163,8 +196,8 @@ export async function createMarket(input: CreateMarketInput): Promise<Market> {
   if (usePostgres()) {
     const pool = await getPgPool();
     const result = await pool.query(
-      `INSERT INTO markets (contract_address, name, description, category, lng, lat, end_time, resolution_time)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+      `INSERT INTO markets (contract_address, name, description, category, lng, lat, end_time, resolution_time, liquidity)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
        RETURNING *`,
       [
         input.contract_address,
@@ -175,14 +208,15 @@ export async function createMarket(input: CreateMarketInput): Promise<Market> {
         input.lat,
         input.end_time,
         input.resolution_time,
+        input.liquidity ?? 200,
       ]
     );
     return normalizeRow(result.rows[0]);
   }
   const db = await getSqliteDb();
   const stmt = db.prepare(`
-    INSERT INTO markets (contract_address, name, description, category, lng, lat, end_time, resolution_time)
-    VALUES (@contract_address, @name, @description, @category, @lng, @lat, @end_time, @resolution_time)
+    INSERT INTO markets (contract_address, name, description, category, lng, lat, end_time, resolution_time, liquidity)
+    VALUES (@contract_address, @name, @description, @category, @lng, @lat, @end_time, @resolution_time, @liquidity)
   `);
   const result = stmt.run({
     contract_address: input.contract_address,
@@ -193,8 +227,20 @@ export async function createMarket(input: CreateMarketInput): Promise<Market> {
     lat: input.lat,
     end_time: input.end_time,
     resolution_time: input.resolution_time,
+    liquidity: input.liquidity ?? 200,
   });
   return (await getMarketById(result.lastInsertRowid as number)) as Market;
+}
+
+export async function updateMarketLiquidity(id: number, liquidity: number): Promise<Market | undefined> {
+  if (usePostgres()) {
+    const pool = await getPgPool();
+    await pool.query('UPDATE markets SET liquidity = $1 WHERE id = $2', [liquidity, id]);
+    return getMarketById(id);
+  }
+  const db = await getSqliteDb();
+  db.prepare('UPDATE markets SET liquidity = ? WHERE id = ?').run(liquidity, id);
+  return getMarketById(id);
 }
 
 export async function resolveMarket(id: number, outcome: boolean): Promise<Market | undefined> {
@@ -225,9 +271,64 @@ export function toGeoJSON(markets: Market[]): GeoJSON.FeatureCollection {
         resolution_time: m.resolution_time,
         resolved: m.resolved,
         outcome: m.outcome,
+        liquidity: m.liquidity,
       },
     })),
   };
+}
+
+export async function getRecentEvents(limit: number = 20): Promise<AppEvent[]> {
+  if (usePostgres()) {
+    const pool = await getPgPool();
+    const result = await pool.query(
+      'SELECT * FROM events ORDER BY created_at DESC LIMIT $1', [limit]
+    );
+    return result.rows.map(normalizeEventRow);
+  }
+  const db = await getSqliteDb();
+  const rows = db.prepare('SELECT * FROM events ORDER BY created_at DESC LIMIT ?').all(limit) as DBRow[];
+  return rows.map(normalizeEventRow);
+}
+
+export async function createEvent(event: Omit<AppEvent, 'id' | 'created_at'>): Promise<AppEvent> {
+  if (usePostgres()) {
+    const pool = await getPgPool();
+    const result = await pool.query(
+      `INSERT INTO events (market_id, event_type, data)
+       VALUES ($1, $2, $3)
+       RETURNING *`,
+      [event.market_id, event.event_type, JSON.stringify(event.data)]
+    );
+    return normalizeEventRow(result.rows[0]);
+  }
+  const db = await getSqliteDb();
+  const stmt = db.prepare(`
+    INSERT INTO events (market_id, event_type, data)
+    VALUES (?, ?, ?)
+  `);
+  const result = stmt.run(event.market_id, event.event_type, JSON.stringify(event.data));
+  return (await getEventById(result.lastInsertRowid as number)) as AppEvent;
+}
+
+function normalizeEventRow(row: DBRow): AppEvent {
+  return {
+    id: row.id,
+    market_id: row.market_id,
+    event_type: row.event_type,
+    data: typeof row.data === 'string' ? JSON.parse(row.data) : row.data,
+    created_at: row.created_at,
+  };
+}
+
+async function getEventById(id: number): Promise<AppEvent | undefined> {
+  if (usePostgres()) {
+    const pool = await getPgPool();
+    const result = await pool.query('SELECT * FROM events WHERE id = $1', [id]);
+    return result.rows.length ? normalizeEventRow(result.rows[0]) : undefined;
+  }
+  const db = await getSqliteDb();
+  const row = db.prepare('SELECT * FROM events WHERE id = ?').get(id) as DBRow | undefined;
+  return row ? normalizeEventRow(row) : undefined;
 }
 
 export async function closeDb() {
