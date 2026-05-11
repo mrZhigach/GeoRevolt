@@ -72,6 +72,12 @@
 | HF.9 | **MarketSidebar на клик по маркеру** — MarketSidebar был импортирован но не рендерился. Добавлен state showSidebar + рендер | 1 | [x] | @feature-lead | 2026-05-11 | ✅ Map.tsx: setShowSidebar в click-хендлерах, JSX-sidebar |
 | HF.10 | **npm run build + validate-docs.sh + CHANGELOG** | 1 | [x] | @feature-lead | 2026-05-11 | ✅ |
 
+## Хотфикс (2026-05-11) — EventFeed restyle + reposition
+
+| ID | Задача | SP | Статус | Агент | Дедлайн | Комментарий |
+|----|--------|----|--------|-------|---------|--------------|
+| HF.11 | **EventFeed restyle + reposition** — полный рестайлинг на Tailwind/shadcn, перемещение под MapControls в левую колонку, скрытие на мобильных | 2 | [x] | @frontend-dev | 2026-05-11 | ✅ EventFeed.tsx: Tailwind + shadcn/ui Card, Map.tsx: общий контейнер, MapControls.tsx: убран fixed. 27/27 Playwright PASS |
+
 ## Бэклог
 - PMTiles для РФ (ждём Planetiler на 48 GB RAM)
 - Деплой на Polygon Amoy (#11)

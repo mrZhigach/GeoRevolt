@@ -89,6 +89,9 @@
 | `vercel.json` | 1.0 | 2025-05-09 | `34817143ae3d5a221661e75d4777b260` — Конфигурация Vercel (Next.js, env) |
 | Release v1.0.0 | 1.0.0 | 2025-05-09 | https://github.com/mrZhigach/GeoRevolt/releases/tag/v1.0.0 |
 | Release v1.1.0 | 1.1.0 | 2026-05-09 | https://github.com/mrZhigach/GeoRevolt/releases/tag/v1.1.0 |
+| Release v1.2.0 | 1.2.0 | 2026-05-11 | PPLX Design |
+| Release v1.3.0 | 1.3.0 | 2026-05-11 | Dashboard Redesign |
+| Release v1.4.0 | 1.4.0 | 2026-05-11 | Stability & UI fixes |
 
 ## API — Базовые
 | Эндпоинт | Описание | Дата |

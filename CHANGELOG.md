@@ -2,6 +2,48 @@
 
 Все значимые изменения в проекте фиксируются здесь в хронологическом порядке (от новых к старым).
 
+## [2026-05-11] — EventFeed restyled with Tailwind/shadcn + moved under MapControls
+
+### Changed
+- **EventFeed.tsx** — полный рестайлинг: убраны все inline-стили, заменены на Tailwind классы и shadcn/ui `Card` компонент. Используется `text-muted-foreground`, `border-border/40`, `bg-card/80`, `backdrop-blur`, `rounded-xl`, `shadow-lg`, `text-[11px]`. Сохранена функциональность: кнопка сворачивания (×), автообновление каждые 15с, иконки событий, временные метки.
+- **Map.tsx** — EventFeed перемещён из правого верхнего угла в левую колонку под MapControls. Оба компонента обёрнуты в общий `fixed top-16 left-2 sm:left-4 z-40 w-[280px] sm:w-[340px] flex flex-col gap-2` контейнер.
+- **MapControls.tsx** — убран собственный `fixed`-контейнер (перенесён в Map.tsx), теперь использует `w-full` внутри общего контейнера.
+- **EventFeed на мобильных** — скрыт через `hidden lg:block` (видим только на десктопе).
+- **Стиль** — glass-эффект через `glass` utility, PPLX тёмная тема (hsl(142 71% 45%) акцент), scroll при большом количестве событий (`max-h-48 overflow-y-auto`).
+
+## [2026-05-11] — Release v1.4.0 — EventFeed restyle, WebGL stability, Discussions, bugfixes
+
+### Added
+- **EventFeed перестилизован и перемещён** — заменены inline-стили на Tailwind + shadcn/ui Card. Размещён под MapControls в левой панели (единый `fixed` контейнер `top-16 left-2`).
+- **Discussions в MarketSidebar** — добавлен блок комментариев `CommentsSection` внизу сайдбара, открывающегося при клике на маркер.
+- **ISO 3166-1 alpha-2 валидация** — `/api/admin/allowed-countries` теперь проверяет коды стран по полному списку.
+- **scripts/restart-dev.sh** — скрипт быстрого перезапуска dev server с очисткой webpack cache.
+
+### Fixed
+- **WebGL context loss cascade** — MetaMask SES lockdown больше не вызывает Fast Refresh loop (DOM overlay вместо React state).
+- **MapControls перекрыт AppHeader** — `top-4` → `top-16` (64px) для зазора под sticky header.
+- **EventFeed перекрывал MarketSidebar/CreateMarketModal** — условный рендеринг + z-index (EventFeed 5, Sidebar 30).
+- **E2E тесты** — исправлены strict mode violations, мобильные селекторы, wagmi hydration.
+- **Button forwardRef** — совместимость с shadcn/ui v4 DialogClose/SheetClose.
+- **GeoJSON lat/lng** — корректное извлечение координат из `geometry.coordinates`.
+- **MarketPopup description** — отображение описания, safe liquidity fallback, async unmount.
+
+### Changed
+- `components/EventFeed.tsx` — полный рестайлинг (Tailwind + shadcn/ui Card)
+- `components/MapControls.tsx` — убран собственный `fixed`, позиционирование от родительского контейнера
+- `components/Map.tsx` — левая панель `fixed` контейнер для MapControls + EventFeed; WebGL overlay через DOM; MarketSidebar рендеринг
+- `components/MarketSidebar.tsx` — добавлен CommentsSection, z-index 30
+- `components/ui/button.tsx` — React.forwardRef + displayName
+- `app/api/admin/allowed-countries/route.ts` — ISO 3166-1 alpha-2 валидация
+- `lib/db.ts` — price_yes/price_no в toGeoJSON()
+- `.gitignore` — *.tsbuildinfo, test-results/
+
+### DevOps / Infrastructure
+- Создан `scripts/restart-dev.sh` для быстрого перезапуска
+- Webpack cache corruption: документирована команда `bash scripts/restart-dev.sh`
+- Все 27 E2E тестов, 49 Foundry тестов проходят
+- GitHub Release v1.4.0
+
 ## [2026-05-11] — Fix: MapControls overlap with AppHeader + Discussions in MarketSidebar
 
 ### Fixed

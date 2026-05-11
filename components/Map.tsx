@@ -386,15 +386,18 @@ export default function Map() {
 
   return (
     <div style={{ position: 'relative', width: '100%', height: '100vh' }}>
-      {/* ---- New-style MapControls (top-left) ---- */}
-      <MapControls
-        walletAddress={address}
-        isConnected={isConnected}
-        onConnect={() => connect({ connector: injected() })}
-        onDisconnect={() => disconnect()}
-        onFlyTo={handleFlyTo}
-        onCategoryFilter={handleCategoryFilter}
-      />
+      {/* ---- Left panel: MapControls + EventFeed ---- */}
+      <div className="fixed top-16 left-2 sm:left-4 z-40 w-[280px] sm:w-[340px] flex flex-col gap-2">
+        <MapControls
+          walletAddress={address}
+          isConnected={isConnected}
+          onConnect={() => connect({ connector: injected() })}
+          onDisconnect={() => disconnect()}
+          onFlyTo={handleFlyTo}
+          onCategoryFilter={handleCategoryFilter}
+        />
+        {!showSidebar && !createCoords && <EventFeed />}
+      </div>
 
       {/* ---- New Market button (bottom-left) ---- */}
       <div style={{ position: 'absolute', bottom: 12, left: 12, zIndex: 45, display: 'flex', gap: 8 }}>
@@ -442,7 +445,6 @@ export default function Map() {
       {createCoords && (
         <CreateMarketModal coordinates={createCoords} onClose={() => setCreateCoords(null)} onCreated={handleMarketCreated} />
       )}
-      {!showSidebar && !createCoords && <EventFeed />}
     </div>
   );
 }

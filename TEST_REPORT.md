@@ -3,6 +3,27 @@
 **Актуально на:** 2026-05-11 23:59 UTC  
 **Спринт:** 8 — Dashboard redesign
 
+## EventFeed Restyle + Reposition (2026-05-11)
+
+### Build & Compilation
+| Проверка | Статус |
+|----------|--------|
+| `next build` (production) | ✅ PASS |
+| TypeScript strict mode | ✅ PASS |
+| All inline styles removed from `EventFeed.tsx` | ✅ Replaced with Tailwind + shadcn/ui Card |
+| `MapControls.tsx` — fixed container removed | ✅ Now uses shared container in Map.tsx |
+
+### E2E Tests (Playwright) — Full Regression
+- **27 tests** (12 admin.spec + 15 sprint8.spec) — **27/27 PASS** ✅
+- All frontend pages load correctly: map page, admin page, market detail, list view
+- Mobile responsive tests pass: hamburger menu, map page on mobile, single column list
+
+### Key changes tested
+- `EventFeed` no longer in right-top corner; now in left column under MapControls
+- `hidden lg:block` — invisible on mobile viewports
+- Collapse/expand toggle works
+- Auto-refresh every 15s preserved
+
 ## Sprint 8 — Dashboard redesign
 
 ### Build & Compilation

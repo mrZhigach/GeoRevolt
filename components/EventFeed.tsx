@@ -1,6 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import { X } from 'lucide-react';
 
 interface EventItem {
   id: number;
@@ -29,50 +31,52 @@ export default function EventFeed() {
     return () => clearInterval(interval);
   }, []);
 
+  // Collapsed state: show a small pill button in the column
   if (collapsed) {
     return (
-      <button onClick={() => setCollapsed(false)} style={{
-        position: 'absolute', top: 12, right: 12, zIndex: 5,
-        background: '#1a1a2e', border: '1px solid #334155', color: '#94a3b8',
-        borderRadius: 6, padding: '6px 10px', cursor: 'pointer', fontSize: 11,
-      }}>
+      <button
+        onClick={() => setCollapsed(false)}
+        className="hidden lg:block w-full text-left px-3 py-2 text-[11px] text-muted-foreground bg-card/80 border border-border/40 rounded-xl shadow-lg backdrop-blur hover:bg-accent/10 transition-colors"
+      >
         Events ({events.length})
       </button>
     );
   }
 
   return (
-    <div className="hidden lg:block" style={{
-      position: 'absolute', top: 16, right: 16, zIndex: 5,
-      width: collapsed ? 48 : 280, background: 'rgba(15, 23, 42, 0.85)',
-      backdropFilter: 'blur(8px)', borderRadius: 12, border: '1px solid #1e293b',
-      transition: 'width 0.3s ease',
-    }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-        <span style={{ fontWeight: 600, fontSize: 13 }}>Live Events</span>
-        <button onClick={() => setCollapsed(true)} style={{
-          background: 'none', border: 'none', color: '#64748b', cursor: 'pointer', fontSize: 16,
-        }}>×</button>
-      </div>
-      {events.length === 0 && (
-        <div style={{ color: '#64748b', textAlign: 'center', padding: 16 }}>
-          No events yet. Create a market to get started.
-        </div>
-      )}
-      {events.map((ev) => (
-        <div key={ev.id} style={{
-          padding: '8px 0', borderBottom: '1px solid #1e293b',
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <EventIcon type={ev.event_type} />
-            <span>{formatEventText(ev)}</span>
+    <Card
+      size="sm"
+      className="glass rounded-xl shadow-lg hidden lg:block"
+    >
+      <CardHeader className="flex flex-row items-center justify-between py-2">
+        <span className="text-xs font-semibold text-foreground">Live Events</span>
+        <button
+          onClick={() => setCollapsed(true)}
+          className="text-muted-foreground hover:text-foreground transition-colors"
+          aria-label="Collapse events"
+        >
+          <X className="w-3 h-3" />
+        </button>
+      </CardHeader>
+      <CardContent className="max-h-48 overflow-y-auto space-y-1">
+        {events.length === 0 && (
+          <div className="text-center py-4 text-xs text-muted-foreground">
+            No events yet. Create a market to get started.
           </div>
-          <div style={{ color: '#64748b', fontSize: 10, marginTop: 2 }}>
-            {new Date(ev.created_at).toLocaleTimeString()}
+        )}
+        {events.map((ev) => (
+          <div key={ev.id} className="py-1.5 border-b border-border/20 last:border-0">
+            <div className="flex items-center gap-1.5 text-[11px] text-foreground/90">
+              <EventIcon type={ev.event_type} />
+              <span className="truncate">{formatEventText(ev)}</span>
+            </div>
+            <div className="text-[10px] text-muted-foreground mt-0.5 ml-5">
+              {new Date(ev.created_at).toLocaleTimeString()}
+            </div>
           </div>
-        </div>
-      ))}
-    </div>
+        ))}
+      </CardContent>
+    </Card>
   );
 }
 
@@ -83,7 +87,7 @@ function EventIcon({ type }: { type: string }) {
     market_resolved: '✅',
     liquidity_added: '💰',
   };
-  return <span>{icons[type] || '📌'}</span>;
+  return <span className="shrink-0">{icons[type] || '📌'}</span>;
 }
 
 function formatEventText(ev: EventItem): string {
