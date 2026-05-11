@@ -130,7 +130,7 @@ export default function MarketSidebar({ market, onClose }: Props) {
     <div style={{
       position: 'absolute', top: 0, right: 0, width: 420, height: '100%',
       background: '#1a1a2e', color: '#e2e8f0', padding: 24, boxShadow: '-4px 0 20px rgba(0,0,0,0.5)',
-      overflowY: 'auto', zIndex: 10, fontFamily: 'system-ui, sans-serif',
+      overflowY: 'auto', zIndex: 30, fontFamily: 'system-ui, sans-serif',
     }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
         <div style={{ flex: 1 }}>

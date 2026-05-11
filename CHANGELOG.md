@@ -2,6 +2,41 @@
 
 Все значимые изменения в проекте фиксируются здесь в хронологическом порядке (от новых к старым).
 
+## [2026-05-11] — Fix: EventFeed overlap, allowed-countries validation, E2E test fixes
+
+### Fixed
+- **EventFeed перекрывал MarketSidebar и CreateMarketModal** — EventFeed (z-index:10) и MarketSidebar (z-index:10) были в одной плоскости, EventFeed в DOM рендерился позже и перекрывал сайдбар. Исправлено:
+  - EventFeed скрывается при открытом сайдбаре или модалке (условный рендеринг `{!showSidebar && !createCoords && <EventFeed />}`).
+  - z-index EventFeed понижен до 5, MarketSidebar повышен до 30.
+- **API /api/admin/allowed-countries не валидировал ISO-коды** — принимал любые 2-буквенные коды. Добавлен полный список ISO 3166-1 alpha-2. Код 'XX' теперь возвращает 400.
+- **E2E тесты** — исправлены 5 упавших тестов:
+  - `allowed-countries validates country codes` — починил API валидацию
+  - `Frontend map page loads` — заменён `text=Connect Wallet` (зависит от wagmi) на проверку body + map container
+  - `Admin page has tab navigation` — strict mode fix: `.first()`
+  - `Mobile hamburger menu visible` — более надёжный селектор
+  - `Responsive list view` — strict mode fix: конкретный grid селектор
+
+## [2026-05-11] — Fix: WebGL context loss cascade + MarketSidebar on marker click
+
+### Fixed
+- **WebGL context loss cascade (CRITICAL)** — MetaMask SES lockdown вызывал повторяющуюся потерю WebGL-контекста. Старый обработчик использовал `setWebglReady(false)`, что триггерило React re-render → Fast Refresh → SES опять блокировал контекст → бесконечный цикл. Исправлено:
+  - WebGL overlay теперь создаётся через прямую DOM-манипуляцию (не через React state), что полностью исключает re-render и Fast Refresh.
+  - Оверлей показывается только после `WEBGL_RESTORE_MAX_ATTEMPTS` (5) попыток.
+  - После восстановления контекста (`webglcontextrestored`) вызывается `m.resize()` и перезагружаются данные GeoJSON-слоя.
+  - Добавлено детектирование SES lockdown при монтировании (diagnostic warn).
+- **Клик по маркеру не открывал дашборд с графиком и ценами** — компонент `MarketSidebar` был импортирован, но нигде не рендерился. Исправлено:
+  - Добавлен state `showSidebar`, который устанавливается при клике на маркер (одновременно с `selectedMarket` для popup).
+  - В JSX добавлен `<MarketSidebar>` — панель справа с полной информацией: график цен (recharts), YES/NO цены, торговый интерфейс (buy/sell), позиция пользователя, redeem.
+  - `showSidebar` очищается при закрытии сайдбара, двойном клике по карте, создании нового маркета.
+
+### Changed
+- `components/Map.tsx`:
+  - WebGL: убран `setWebglReady` (state), заменён на `webglOverlayRef` (DOM-узел) с функциями `webglShowOverlay()` / `webglHideOverlay()`.
+  - SES detection: `useEffect` с проверкой `window.SES?.lockdown` для диагностического warn.
+  - Marker click: `m.on('click', 'markets-radius/...')` теперь вызывает `setShowSidebar(enriched)`.
+  - Close handlers: `handleMarketClosed`, `dblclick`, "New Market" button — все очищают `showSidebar`.
+  - Убран старый React-оверлей `{!webglReady && (...)}`.
+
 ## [2026-05-11] – Hotfix Sprint 8: MarketPopup data, WebGL context loss loop, description display
 
 ### Fixed

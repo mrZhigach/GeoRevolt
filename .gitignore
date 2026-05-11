@@ -36,3 +36,4 @@ broadcast/
 
 # TypeScript build info
 *.tsbuildinfo
+test-results/

@@ -64,6 +64,14 @@
 | HF.6 | **Цены YES/NO отсутствовали в GeoJSON** — `toGeoJSON()` не экспортировал price_yes/price_no. Добавлены с null default | 1 | [x] | @feature-lead | 2026-05-11 | ✅ lib/db.ts: price_yes: null, price_no: null |
 | HF.7 | **npm run build + validate-docs.sh + CHANGELOG** | 1 | [x] | @feature-lead | 2026-05-11 | ✅ |
 
+## Хотфикс (2026-05-11) — WebGL cascade + MarketSidebar
+
+| ID | Задача | SP | Статус | Агент | Дедлайн | Комментарий |
+|----|--------|----|--------|-------|---------|--------------|
+| HF.8 | **WebGL context loss cascade** — MetaMask SES lockdown → setWebglReady → Fast Refresh → loop. Исправлено: DOM overlay вместо React state | 2 | [x] | @feature-lead | 2026-05-11 | ✅ Map.tsx: webglShowOverlay/webglHideOverlay через DOM, SES detection |
+| HF.9 | **MarketSidebar на клик по маркеру** — MarketSidebar был импортирован но не рендерился. Добавлен state showSidebar + рендер | 1 | [x] | @feature-lead | 2026-05-11 | ✅ Map.tsx: setShowSidebar в click-хендлерах, JSX-sidebar |
+| HF.10 | **npm run build + validate-docs.sh + CHANGELOG** | 1 | [x] | @feature-lead | 2026-05-11 | ✅ |
+
 ## Бэклог
 - PMTiles для РФ (ждём Planetiler на 48 GB RAM)
 - Деплой на Polygon Amoy (#11)

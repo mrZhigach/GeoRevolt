@@ -35,12 +35,13 @@ export default function Map() {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<maplibregl.Map | null>(null);
   const restoreAttempts = useRef(0);
+  const webglOverlayRef = useRef<HTMLDivElement | null>(null);
   const categoryFilterRef = useRef<string>('all');
   const [selectedMarket, setSelectedMarket] = useState<MarketProperties | null>(null);
+  const [showSidebar, setShowSidebar] = useState<MarketProperties | null>(null);
   const [clickedLngLat, setClickedLngLat] = useState<{ lng: number; lat: number } | null>(null);
   const [createCoords, setCreateCoords] = useState<{ lng: number; lat: number } | null>(null);
   const [markets, setMarkets] = useState<MarketProperties[]>([]);
-  const [webglReady, setWebglReady] = useState(true);
   const { address, isConnected } = useAccount();
   const { connect } = useConnect();
   const { disconnect } = useDisconnect();
@@ -74,6 +75,19 @@ export default function Map() {
     }
   }, []);
 
+  // ---- Detect MetaMask SES lockdown (diagnostic) ----
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const hasSES = !('eval' in window) || (window as any).SES?.lockdown;
+      if (hasSES) {
+        console.warn(
+          '[Map] MetaMask SES lockdown detected — WebGL context may be unstable. ' +
+          'If the map fails, disable MetaMask for this site or use a different browser.'
+        );
+      }
+    }
+  }, []);
+
   // ---- Map initialization ----
   useEffect(() => {
     if (map.current || !mapContainer.current) return;
@@ -86,26 +100,65 @@ export default function Map() {
     } as maplibregl.MapOptions);
 
     // WebGL context loss/restore handling
-    // NOTE: we do NOT call e.preventDefault() — let the browser auto-restore
-    // the context. MapLibre GL JS 4.x handles internal re-initialization
-    // of painting resources after restore.
+    // IMPORTANT: We use direct DOM manipulation (not React state) for the overlay
+    // to avoid triggering React re-renders → Fast Refresh → SES lockdown loop.
+    // MetaMask's SES lockdown intercepts WebGL and can cause repeated context loss.
+    // By toggling DOM directly, we keep React out of the recovery cycle.
+    const webglShowOverlay = () => {
+      if (webglOverlayRef.current) return; // already shown
+      const container = mapContainer.current;
+      if (!container) return;
+      const overlay = document.createElement('div');
+      overlay.id = 'webgl-overlay';
+      overlay.style.cssText = `
+        position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+        background: rgba(15, 23, 42, 0.85); display: flex; flex-direction: column;
+        align-items: center; justify-content: center; z-index: 20; gap: 12px;
+      `;
+      overlay.innerHTML = `
+        <div style="font-size:14px;color:#f59e0b;font-weight:500;">
+          ⚠ Map unavailable — WebGL context lost
+        </div>
+        <div style="font-size:12px;color:#94a3b8;">
+          Browser extension (e.g. MetaMask) may be interfering with WebGL.
+        </div>
+        <div style="font-size:11px;color:#f87171;max-width:320px;text-align:center;">
+          Try disabling MetaMask for this site or use a different browser
+          (Firefox / Chrome without extensions).
+        </div>
+        <button id="webgl-reload-btn" style="
+          padding: 10px 20px; border-radius: 8px; background: hsl(142 71% 45%);
+          color: #fff; font-size: 14px; font-weight: 500; border: none; cursor: pointer;
+        ">Reload Page</button>
+      `;
+      overlay.querySelector('#webgl-reload-btn')?.addEventListener('click', () => {
+        window.location.reload();
+      });
+      container.appendChild(overlay);
+      webglOverlayRef.current = overlay;
+    };
+    const webglHideOverlay = () => {
+      if (webglOverlayRef.current) {
+        webglOverlayRef.current.remove();
+        webglOverlayRef.current = null;
+      }
+    };
+
     const canvas = m.getCanvas();
-    const handleContextLost = (e: Event) => {
+    const handleContextLost = () => {
       restoreAttempts.current += 1;
       console.warn(
         `[Map] WebGL context lost (attempt ${restoreAttempts.current}/${WEBGL_RESTORE_MAX_ATTEMPTS})`
       );
-      setWebglReady(false);
-
       if (restoreAttempts.current >= WEBGL_RESTORE_MAX_ATTEMPTS) {
-        console.error('[Map] WebGL context repeatedly lost — showing reload overlay');
+        webglShowOverlay();
       }
     };
     const handleContextRestored = () => {
       console.log(
         '[Map] WebGL context restored after', restoreAttempts.current, 'loss(es)'
       );
-      setWebglReady(true);
+      webglHideOverlay();
       restoreAttempts.current = 0;
 
       // Resize triggers MapLibre's internal re-render
@@ -128,7 +181,7 @@ export default function Map() {
 
     if (m.getCanvas().getContext('webgl')?.isContextLost() ?? false) {
       console.warn('[Map] Context already lost on init — will retry');
-      setWebglReady(false);
+      webglShowOverlay();
     }
 
     m.addControl(new maplibregl.NavigationControl(), 'top-right');
@@ -247,13 +300,14 @@ export default function Map() {
           } as MarketProperties;
         };
 
-        // Click on circle → open popup
+        // Click on circle → open popup + sidebar dashboard
         m.on('click', 'markets-radius', (e) => {
           const enriched = enrichMarket(e.features?.[0]);
           if (enriched?.contract_address) {
             setClickedLngLat({ lng: e.lngLat.lng, lat: e.lngLat.lat });
             setCreateCoords(null);
             setSelectedMarket(enriched);
+            setShowSidebar(enriched);
           }
         });
 
@@ -263,6 +317,7 @@ export default function Map() {
             setClickedLngLat({ lng: e.lngLat.lng, lat: e.lngLat.lat });
             setCreateCoords(null);
             setSelectedMarket(enriched);
+            setShowSidebar(enriched);
           }
         });
 
@@ -288,6 +343,7 @@ export default function Map() {
           if (e.lngLat) {
             setSelectedMarket(null);
             setClickedLngLat(null);
+            setShowSidebar(null);
             setCreateCoords({ lng: e.lngLat.lng, lat: e.lngLat.lat });
           }
         });
@@ -311,6 +367,7 @@ export default function Map() {
     return () => {
       canvas.removeEventListener('webglcontextlost', handleContextLost);
       canvas.removeEventListener('webglcontextrestored', handleContextRestored);
+      webglHideOverlay();
       m.remove();
       map.current = null;
     };
@@ -324,6 +381,7 @@ export default function Map() {
   const handleMarketClosed = useCallback(() => {
     setSelectedMarket(null);
     setClickedLngLat(null);
+    setShowSidebar(null);
   }, []);
 
   return (
@@ -343,6 +401,7 @@ export default function Map() {
         <button
           onClick={() => {
             setSelectedMarket(null);
+            setShowSidebar(null);
             setCreateCoords({ lng: 37.62, lat: 55.75 });
           }}
           className="glass rounded-xl shadow-lg px-4 py-2 text-sm font-medium text-foreground hover:bg-accent/20 transition-colors flex items-center gap-1.5"
@@ -359,35 +418,7 @@ export default function Map() {
 
       <div ref={mapContainer} style={{ width: '100%', height: '100%' }} />
 
-      {/* ---- WebGL lost overlay ---- */}
-      {!webglReady && (
-        <div style={{
-          position: 'absolute', top: 0, left: 0, width: '100%', height: '100%',
-          background: 'rgba(15, 23, 42, 0.85)', display: 'flex', flexDirection: 'column',
-          alignItems: 'center', justifyContent: 'center', zIndex: 20, gap: 12,
-        }}>
-          <div style={{ fontSize: 14, color: '#f59e0b', fontWeight: 500 }}>
-            ⚠ Map unavailable — WebGL context lost
-          </div>
-          <div style={{ fontSize: 12, color: '#94a3b8' }}>
-            Restore attempt {restoreAttempts.current}/{WEBGL_RESTORE_MAX_ATTEMPTS}
-            {restoreAttempts.current >= WEBGL_RESTORE_MAX_ATTEMPTS
-              ? ' — please reload the page.'
-              : ' — auto-retrying...'}
-          </div>
-          {restoreAttempts.current >= WEBGL_RESTORE_MAX_ATTEMPTS && (
-            <div style={{ fontSize: 11, color: '#f87171', maxWidth: 320, textAlign: 'center' }}>
-              This may be caused by a browser extension (e.g. MetaMask) conflicting with WebGL.
-              Try disabling extensions or using a different browser.
-            </div>
-          )}
-          <button onClick={() => window.location.reload()} className="px-5 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors">
-            Reload Page
-          </button>
-        </div>
-      )}
-
-      {/* Marker popup (overrides sidebar for map clicks) */}
+      {/* Marker popup (shows above marker on click) */}
       {selectedMarket && clickedLngLat && map.current && (
         <MarketPopup
           market={selectedMarket}
@@ -399,10 +430,19 @@ export default function Map() {
           }}
         />
       )}
+
+      {/* MarketSidebar — full dashboard with chart, prices, trading (slides in from right) */}
+      {showSidebar && (
+        <MarketSidebar
+          market={showSidebar}
+          onClose={() => setShowSidebar(null)}
+        />
+      )}
+
       {createCoords && (
         <CreateMarketModal coordinates={createCoords} onClose={() => setCreateCoords(null)} onCreated={handleMarketCreated} />
       )}
-      <EventFeed />
+      {!showSidebar && !createCoords && <EventFeed />}
     </div>
   );
 }

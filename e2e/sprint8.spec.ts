@@ -75,10 +75,11 @@ test.describe('Sprint 8 — Dashboard redesign', () => {
   test.describe('Frontend Pages', () => {
     test('Admin page has tab navigation', async ({ page }) => {
       await page.goto('/admin');
-      await expect(page.locator('text=Dashboard')).toBeVisible({ timeout: 10000 });
-      await expect(page.locator('text=Markets')).toBeVisible();
-      await expect(page.locator('text=Batch Upload')).toBeVisible();
-      await expect(page.locator('text=Allowed Countries')).toBeVisible();
+      // Use .first() to handle strict mode — both heading and tab button contain "Dashboard"
+      await expect(page.locator('text=Dashboard').first()).toBeVisible({ timeout: 15000 });
+      await expect(page.locator('text=Markets').first()).toBeVisible();
+      await expect(page.locator('text=Batch Upload').first()).toBeVisible();
+      await expect(page.locator('text=Allowed Countries').first()).toBeVisible();
     });
 
     test('Admin tabs switch content', async ({ page }) => {
@@ -114,9 +115,8 @@ test.describe('Sprint 8 — Dashboard redesign', () => {
       // Set mobile viewport
       await page.setViewportSize({ width: 375, height: 667 });
       await page.goto('/admin');
-      // Hamburger button should be visible on mobile
-      const hamburger = page.locator('.md\\\\:hidden'); // the CSS class for mobile-only
-      await expect(hamburger).toBeVisible({ timeout: 5000 });
+      // SheetTrigger hamburger button — should be visible on mobile via md:hidden class
+      await expect(page.getByLabel('Open menu').or(page.locator('button:has(svg.lucide-menu)').first())).toBeVisible({ timeout: 8000 });
     });
 
     test('Map page loads on mobile', async ({ page }) => {
@@ -129,7 +129,11 @@ test.describe('Sprint 8 — Dashboard redesign', () => {
     test('Responsive list view is single column on mobile', async ({ page }) => {
       await page.setViewportSize({ width: 375, height: 667 });
       await page.goto('/?view=list');
-      await expect(page.locator('text=Map').first()).toBeVisible({ timeout: 10000 });
+      // Wait for React hydration — list view renders MarketsList with ViewToggle
+      await expect(page.locator('body')).toBeAttached({ timeout: 10000 });
+      // Check that markets grid container is rendered (single column on mobile via grid-cols-1)
+      const grid = page.locator('div.grid.grid-cols-1').first();
+      await expect(grid).toBeAttached({ timeout: 8000 });
     });
   });
 

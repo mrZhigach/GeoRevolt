@@ -43,7 +43,7 @@ export default function EventFeed() {
 
   return (
     <div className="hidden lg:block" style={{
-      position: 'absolute', top: 16, right: 16, zIndex: 10,
+      position: 'absolute', top: 16, right: 16, zIndex: 5,
       width: collapsed ? 48 : 280, background: 'rgba(15, 23, 42, 0.85)',
       backdropFilter: 'blur(8px)', borderRadius: 12, border: '1px solid #1e293b',
       transition: 'width 0.3s ease',
