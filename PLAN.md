@@ -83,6 +83,12 @@
 | ID | Задача | SP | Статус | Агент | Дедлайн | Комментарий |
 |----|--------|----|--------|-------|---------|--------------|
 | DE.1 | **Reverse geocoding на клик по фону карты** — клик на пустую область → Nominatim API → Popup с адресом. Debounce 300ms для отличия от dblclick. Существующие хендлеры не тронуты | 2 | [x] | @cartography-engineer | 2026-05-11 | ✅ Map.tsx: новый click-хендлер с reverse geocoding через Nomintim, MapLibre Popup |
+| DE.2 | **Тёмные тайлы OSM + стили контролов** — CSS filter на canvas (invert/hue-rotate/brightness/contrast/saturate), glass-стиль для zoom/compass | 1 | [x] | @cartography-engineer | 2026-05-11 | ✅ globals.css: .maplibregl-canvas-container canvas filter + .maplibregl-ctrl-group glass |
+| DE.3 | **StatsCard** — плавающая карточка статистики (fixed bottom-6 right-6, card-glass, auto-refresh 30s) | 2 | [x] | @frontend-dev | 2026-05-11 | ✅ components/StatsCard.tsx |
+| DE.4 | **Geocoder** — улучшенный поиск с Nominatim (debounce 300ms, dropdown, очистка, spinner) | 2 | [x] | @frontend-dev | 2026-05-11 | ✅ components/Geocoder.tsx — заменяет inline-геокодер в MapControls |
+| DE.5 | **LocateButton** — кнопка геолокации (Crosshair, glass, spinner, временный маркер) | 1 | [x] | @frontend-dev | 2026-05-11 | ✅ components/LocateButton.tsx |
+| DE.6 | **MarketSidebar → card-glass** — рефакторинг inline-стилей в Tailwind + shadcn/ui, card-glass | 3 | [x] | @ui-ux-designer | 2026-05-11 | ✅ MarketSidebar.tsx: ~170 строк inline → Tailwind |
+| DE.7 | **Интеграция + тестирование** — Map.tsx: Geocoder + LocateButton + StatsCard; удаление дублированного кода из MapControls; API тесты; docs validation | 2 | [x] | @feature-lead | 2026-05-11 | ✅ build PASS, 11/12 API tests PASS, docs PASS, релиз v1.6.0 |
 
 ## Бэклог
 - PMTiles для РФ (ждём Planetiler на 48 GB RAM)
