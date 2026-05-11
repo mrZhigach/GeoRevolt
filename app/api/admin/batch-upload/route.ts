@@ -12,6 +12,7 @@ interface BatchItem {
   endTime: number;
   resolutionTime: number;
   liquidity?: number;
+  radius?: number;
 }
 
 interface BatchResult {
@@ -82,6 +83,7 @@ function parseCSV(text: string): { items: BatchItem[]; errors: string[] } {
       endTime,
       resolutionTime,
       liquidity: row.liquidity ? parseFloat(row.liquidity) : 200,
+      radius: row.radius ? parseFloat(row.radius) : 100,
     });
   }
 
@@ -128,6 +130,7 @@ function parseGeoJSON(json: any): { items: BatchItem[]; errors: string[] } {
       endTime,
       resolutionTime,
       liquidity: props.liquidity ?? 200,
+      radius: props.radius ?? 100,
     });
   }
 
@@ -215,6 +218,7 @@ export async function POST(request: NextRequest) {
           end_time: item.endTime,
           resolution_time: item.resolutionTime,
           liquidity: item.liquidity ?? 200,
+          radius: item.radius ?? 100,
           simulated: !useBlockchain,
         });
 

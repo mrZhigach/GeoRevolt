@@ -18,6 +18,7 @@ export function getConfig() {
       [anvilChain.id]: http('http://127.0.0.1:8545'),
       [polygonAmoy.id]: http('https://rpc-amoy.polygon.technology'),
     },
+    ssr: true,
   });
 }
 

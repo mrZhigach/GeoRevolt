@@ -68,11 +68,16 @@ function initSqliteSchema(db: any) {
       outcome INTEGER,
       liquidity REAL NOT NULL DEFAULT 0,
       simulated INTEGER NOT NULL DEFAULT 0,
+      radius REAL NOT NULL DEFAULT 100,
+      address TEXT,
       created_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
     CREATE INDEX IF NOT EXISTS idx_markets_lng_lat ON markets(lng, lat);
+    CREATE INDEX IF NOT EXISTS idx_markets_lat_lng ON markets(lat, lng);
     CREATE INDEX IF NOT EXISTS idx_markets_resolved ON markets(resolved);
   `);
+  try { db.exec(`ALTER TABLE markets ADD COLUMN radius REAL NOT NULL DEFAULT 100;`); } catch { /* already exists */ }
+  try { db.exec(`ALTER TABLE markets ADD COLUMN address TEXT;`); } catch { /* already exists */ }
   db.exec(`
     CREATE TABLE IF NOT EXISTS events (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -125,11 +130,16 @@ async function initPgSchema(pool: Pool) {
       outcome BOOLEAN,
       liquidity DOUBLE PRECISION NOT NULL DEFAULT 0,
       simulated BOOLEAN NOT NULL DEFAULT FALSE,
+      radius DOUBLE PRECISION NOT NULL DEFAULT 100,
+      address TEXT,
       created_at TIMESTAMP NOT NULL DEFAULT NOW()
     );
     CREATE INDEX IF NOT EXISTS idx_markets_lng_lat ON markets(lng, lat);
+    CREATE INDEX IF NOT EXISTS idx_markets_lat_lng ON markets(lat, lng);
     CREATE INDEX IF NOT EXISTS idx_markets_resolved ON markets(resolved);
   `);
+  await pool.query(`ALTER TABLE markets ADD COLUMN IF NOT EXISTS radius DOUBLE PRECISION NOT NULL DEFAULT 100;`);
+  await pool.query(`ALTER TABLE markets ADD COLUMN IF NOT EXISTS address TEXT;`);
   await pool.query(`
     CREATE TABLE IF NOT EXISTS events (
       id SERIAL PRIMARY KEY,
@@ -181,6 +191,8 @@ function normalizeRow(row: DBRow): Market {
     outcome: row.outcome === null ? null : Boolean(row.outcome),
     liquidity: Number(row.liquidity ?? 0),
     simulated: usePostgres() ? row.simulated : Boolean(row.simulated),
+    radius: Number(row.radius ?? 100),
+    address: row.address ?? null,
     created_at: row.created_at,
   };
 }
@@ -199,6 +211,8 @@ export interface Market {
   outcome: boolean | null;
   liquidity: number;
   simulated: boolean;
+  radius: number;
+  address: string | null;
   created_at: string;
 }
 
@@ -221,6 +235,8 @@ export interface CreateMarketInput {
   resolution_time: number;
   liquidity?: number;
   simulated?: boolean;
+  radius?: number;
+  address?: string | null;
 }
 
 export async function getAllMarkets(): Promise<Market[]> {
@@ -249,8 +265,8 @@ export async function createMarket(input: CreateMarketInput): Promise<Market> {
   if (usePostgres()) {
     const pool = await getPgPool();
     const result = await pool.query(
-      `INSERT INTO markets (contract_address, name, description, category, lng, lat, end_time, resolution_time, liquidity, simulated)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+      `INSERT INTO markets (contract_address, name, description, category, lng, lat, end_time, resolution_time, liquidity, simulated, radius, address)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
        RETURNING *`,
       [
         input.contract_address,
@@ -263,14 +279,16 @@ export async function createMarket(input: CreateMarketInput): Promise<Market> {
         input.resolution_time,
         input.liquidity ?? 200,
         input.simulated ?? false,
+        input.radius ?? 100,
+        input.address ?? null,
       ]
     );
     return normalizeRow(result.rows[0]);
   }
   const db = await getSqliteDb();
   const stmt = db.prepare(`
-    INSERT INTO markets (contract_address, name, description, category, lng, lat, end_time, resolution_time, liquidity, simulated)
-    VALUES (@contract_address, @name, @description, @category, @lng, @lat, @end_time, @resolution_time, @liquidity, @simulated)
+    INSERT INTO markets (contract_address, name, description, category, lng, lat, end_time, resolution_time, liquidity, simulated, radius, address)
+    VALUES (@contract_address, @name, @description, @category, @lng, @lat, @end_time, @resolution_time, @liquidity, @simulated, @radius, @address)
   `);
   const result = stmt.run({
     contract_address: input.contract_address,
@@ -283,6 +301,8 @@ export async function createMarket(input: CreateMarketInput): Promise<Market> {
     resolution_time: input.resolution_time,
     liquidity: input.liquidity ?? 200,
     simulated: input.simulated ? 1 : 0,
+    radius: input.radius ?? 100,
+    address: input.address ?? null,
   });
   return (await getMarketById(result.lastInsertRowid as number)) as Market;
 }
@@ -328,6 +348,8 @@ export function toGeoJSON(markets: Market[]): GeoJSON.FeatureCollection {
         outcome: m.outcome,
         liquidity: m.liquidity,
         simulated: m.simulated,
+        radius: m.radius,
+        address: m.address,
       },
     })),
   };

@@ -1,9 +1,15 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAccount, useReadContract, useWriteContract, useWatchContractEvent } from 'wagmi';
 import { parseUnits, formatUnits } from 'viem';
 import { MarketABI, MOCK_USDC_ADDRESS } from '@/lib/web3';
+import dynamic from 'next/dynamic';
+
+const PriceChart = dynamic(
+  () => import('./PriceChart'),
+  { ssr: false }
+);
 
 interface Props {
   market: {
@@ -13,8 +19,15 @@ interface Props {
     description: string;
     category: string;
     status: string;
+    address?: string | null;
   };
   onClose: () => void;
+}
+
+interface PricePoint {
+  timestamp: number;
+  price_yes: number;
+  price_no: number;
 }
 
 export default function MarketSidebar({ market, onClose }: Props) {
@@ -22,6 +35,9 @@ export default function MarketSidebar({ market, onClose }: Props) {
   const [usdcAmount, setUsdcAmount] = useState('');
   const [buySide, setBuySide] = useState<'yes' | 'no'>('yes');
   const [approving, setApproving] = useState(false);
+  const [priceHistory, setPriceHistory] = useState<PricePoint[]>([]);
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => { setMounted(true); }, []);
 
   const marketAddr = market.contract_address as `0x${string}`;
 
@@ -34,6 +50,17 @@ export default function MarketSidebar({ market, onClose }: Props) {
   const { data: outcome } = useReadContract({ abi: MarketABI, address: marketAddr, functionName: 'outcome' });
 
   const { writeContractAsync: writeMarket } = useWriteContract();
+
+  useEffect(() => {
+    const controller = new AbortController();
+    fetch(`/api/price-history/${market.contract_address}`, { signal: controller.signal })
+      .then((r) => r.json())
+      .then((data: PricePoint[]) => {
+        if (Array.isArray(data)) setPriceHistory(data);
+      })
+      .catch(() => {});
+    return () => controller.abort();
+  }, [market.contract_address]);
 
   const rUsdc = Number(reserveUSDC ?? 0n);
   const rYes = Number(reserveYES ?? 0n);
@@ -101,14 +128,19 @@ export default function MarketSidebar({ market, onClose }: Props) {
 
   return (
     <div style={{
-      position: 'absolute', top: 0, right: 0, width: 400, height: '100%',
+      position: 'absolute', top: 0, right: 0, width: 420, height: '100%',
       background: '#1a1a2e', color: '#e2e8f0', padding: 24, boxShadow: '-4px 0 20px rgba(0,0,0,0.5)',
       overflowY: 'auto', zIndex: 10, fontFamily: 'system-ui, sans-serif',
     }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-        <h2 style={{ margin: 0, fontSize: 18, fontWeight: 600 }}>{market.name}</h2>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
+        <div style={{ flex: 1 }}>
+          <h2 style={{ margin: 0, fontSize: 18, fontWeight: 600 }}>{market.name}</h2>
+          <div style={{ fontSize: 11, color: '#475569', marginTop: 4 }}>
+            {market.category} &middot; {market.contract_address.slice(0, 14)}...
+          </div>
+        </div>
         <button onClick={onClose} style={{
-          background: 'none', border: 'none', color: '#94a3b8', fontSize: 24, cursor: 'pointer', padding: '4px 8px',
+          background: 'none', border: 'none', color: '#94a3b8', fontSize: 24, cursor: 'pointer', padding: '0 0 0 12px', lineHeight: 1,
         }}>×</button>
       </div>
 
@@ -121,7 +153,21 @@ export default function MarketSidebar({ market, onClose }: Props) {
         </span>
       </div>
 
-      <p style={{ color: '#94a3b8', fontSize: 13, lineHeight: 1.5, marginBottom: 16 }}>{market.description}</p>
+      <p style={{ color: '#94a3b8', fontSize: 13, lineHeight: 1.5, marginBottom: 8 }}>{market.description}</p>
+
+      {market.address && (
+        <div style={{ fontSize: 11, color: '#64748b', marginBottom: 16, fontStyle: 'italic' }}>
+          📍 {market.address}
+        </div>
+      )}
+
+      {/* Price chart (client-side only) */}
+      {mounted && priceHistory.length > 0 && (
+        <div style={{ background: '#16213e', borderRadius: 8, padding: 12, marginBottom: 16 }}>
+          <div style={{ fontSize: 12, color: '#64748b', marginBottom: 8 }}>Price History</div>
+          <PriceChart data={priceHistory} />
+        </div>
+      )}
 
       <div style={{ display: 'flex', gap: 12, marginBottom: 16 }}>
         <PriceBox label="YES Price" value={priceYes.toFixed(4)} color="#22c55e" />
@@ -193,11 +239,6 @@ export default function MarketSidebar({ market, onClose }: Props) {
       {isResolved && (
         <RedeemSection marketAddr={marketAddr} outcome={Boolean(outcome)} isYesHolder={bYes > 0} isNoHolder={bNo > 0} />
       )}
-
-      <div style={{ fontSize: 12, color: '#475569', marginTop: 16 }}>
-        <div>Contract: {market.contract_address.slice(0, 14)}...</div>
-        <div>Category: {market.category}</div>
-      </div>
     </div>
   );
 }

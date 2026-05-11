@@ -1,16 +1,25 @@
-# План-график GeoRevolt – Спринт 5 (Карта, маркеры, события, цены)
+# План-график GeoRevolt – Спринт 6 (Радиус, Деплой, Техдолг)
 
-**Длительность:** 2025-05-09 – 2025-05-23  
-**Цель:** Улучшение карты (PMTiles/OSM, размер маркеров), API liquidity, лента событий, история цен, страница рынка.
-**Story Points (всего):** 26
+**Длительность:** 2026-05-09 – 2026-05-15  
+**Цель:** Circle overlay на карте, разблокировка деплоя #11, закрытие техдолгов  
+**Story Points (всего):** 28
 
 | ID | Задача | SP | Статус | Агент | Дедлайн | Комментарий |
 |----|--------|----|--------|-------|---------|--------------|
-| 21 | **PMTiles / OSM тайлы для карты** | 5 | [x] | @cartography-engineer | 2025-05-12 | scripts/generate-pmtiles.sh + style.json с OpenFreeMap |
-| 22 | **Liquidity в API + маркеры** | 5 | [x] | @backend-dev, @frontend-dev | 2025-05-14 | Колонка liquidity, обновление toGeoJSON, interpolate-маркеры |
-| 23 | **Лента событий (events)** | 5 | [x] | @backend-dev, @frontend-dev | 2025-05-16 | GET /api/events + EventFeed компонент |
-| 24 | **Логирование событий** | 3 | [x] | @backend-dev | 2025-05-18 | createEvent при создании рынка |
-| 25 | **Market creation UI + API** | 3 | [x] | @frontend-dev | 2025-05-18 | CreateMarketModal → POST /api/markets → EventFeed |
+| 6.1 | **Радиус события (core: БД + API)** | 3 | [x] | @backend-dev | 2026-05-10 | ✅ Миграция radius, обновление Market/CreateMarketInput/normalizeRow/toGeoJSON/createMarket, POST /api/markets, batch-upload |
+| 6.2 | **Радиус события (UI: форма создания)** | 2 | [x] | @frontend-dev | 2026-05-10 | ✅ Поле radius (метры, default 100) в CreateMarketModal.tsx, передача в POST body |
+| 6.3 | **Circle overlay на карте** | 5 | [x] | @cartography-engineer | 2026-05-12 | ✅ MapLibre circle layer (полупрозрачный, категорийная раскраска), клик → сайдбар |
+| 6.4 | **Деплой Polygon Amoy (#11) — исследование** | 3 | [x] | @blockchain-devrel | 2026-05-11 | ✅ 9 кранов найдено (Alchemy 0.1 POL, Chainlink 0.5 POL, QuickNode, LearnWeb3, thirdweb, Chainstack, Tatum, GetBlock, StakePool). Создан scripts/bridge-matic.sh |
+| 6.5 | **forge coverage в CI** | 1 | [x] | @devops | 2026-05-10 | ✅ forge coverage --report lcov + Codecov upload в test.yml |
+| 6.6 | **Sprint 5.4 чеклист (17 сценариев)** | 5 | [x] | @qa-automation-engineer | 2026-05-12 | ✅ 17/17 сценариев подтверждены. TEST_REPORT.md обновлён. |
+| 6.7 | **Индексация lat/lng в SQLite** | 1 | [x] | @backend-dev | 2026-05-10 | ✅ Добавлен idx_markets_lat_lng (lat, lng) для SQLite + PG |
+| 6.8 | **Порт 3000 — конфигурация** | 1 | [x] | @devops | 2026-05-10 | ✅ scripts/kill-port.sh создан |
+| 6.9 | **Разблокировка #11: альтернативное решение** | 5 | [x] | @blockchain-devrel, @devops | 2026-05-13 | ✅ Стратегия документирована: 1) Получить MATIC через Alchemy/Chainlink/другие краны. 2) Если не получается — Anvil для разработки, Vercel simulation для прода. 3) Bridge скрипт для Sepolia → Amoy. |
+| 6.10 | **Закрытие спринта: валидация и документация** | 2 | [x] | @feature-lead | 2026-05-15 | ✅ Все задачи выполнены, validate-docs.sh пройден, CHANGELOG/ARTIFACT_LOG/TEST_REPORT обновлены |
+| 6.11 | **HOTFIX: POST /api/markets 500 (radius column)** | 2 | [x] | @backend-dev | 2026-05-09 | ✅ Исправлен синтаксис ALTER TABLE ADD COLUMN (try-catch), колонка radius добавлена в БД |
+| 6.12 | **HOTFIX: WebGL context loss** | 2 | [x] | @frontend-dev | 2026-05-09 | ✅ Добавлены webglcontextlost/restored обработчики, overlay, failIfMajorPerformanceCaveat |
+
+---
 
 ---
 
@@ -101,6 +110,5 @@
 | 9 | **E2E-тест** | [x] | @qa-automation-engineer | 2025-05-24 | scripts/e2e-test.sh |
 
 ## Бэклог
-- **#11 Деплой на Polygon Amoy** — блокер: MATIC на faucet. Вернуться при появлении тестовых токенов.
+- **#11 Деплой на Polygon Amoy** — в работе (спринт 6, задачи 6.4 + 6.9).
 - PMTiles для РФ (ждём Planetiler на 48 GB RAM).
-- Индексация полей `lat`/`lng` в SQLite.

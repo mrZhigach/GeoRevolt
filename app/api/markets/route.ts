@@ -56,6 +56,8 @@ export async function POST(request: NextRequest) {
       resolution_time: body.resolution_time,
       liquidity: body.liquidity ?? 200,
       simulated: body.simulated ?? false,
+      radius: body.radius ?? 100,
+      address: body.address ?? null,
     });
 
     await createEvent({

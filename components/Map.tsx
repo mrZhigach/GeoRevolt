@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useRef, useState, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
 import maplibregl, { GeoJSONSource } from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import MarketSidebar from './MarketSidebar';
@@ -9,6 +8,9 @@ import CreateMarketModal from './CreateMarketModal';
 import EventFeed from './EventFeed';
 import { useAccount, useConnect, useDisconnect } from 'wagmi';
 import { injected } from 'wagmi/connectors';
+
+const WEBGL_RESTORE_MAX_ATTEMPTS = 5;
+const WEBGL_RESTORE_RETRY_MS = 2000;
 
 interface MarketProperties {
   id: number;
@@ -18,15 +20,18 @@ interface MarketProperties {
   category: string;
   status: string;
   liquidity: number;
+  radius: number;
+  address: string | null;
 }
 
 export default function Map() {
-  const router = useRouter();
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<maplibregl.Map | null>(null);
+  const restoreAttempts = useRef(0);
   const [selectedMarket, setSelectedMarket] = useState<MarketProperties | null>(null);
   const [createCoords, setCreateCoords] = useState<{ lng: number; lat: number } | null>(null);
   const [markets, setMarkets] = useState<MarketProperties[]>([]);
+  const [webglReady, setWebglReady] = useState(true);
   const { address, isConnected } = useAccount();
   const { connect } = useConnect();
   const { disconnect } = useDisconnect();
@@ -36,10 +41,33 @@ export default function Map() {
 
     const m = new maplibregl.Map({
       container: mapContainer.current,
-      style: '/data/style.json',
+      style: '/data/style-demo.json',
       center: [40, 55],
       zoom: 3,
+      failIfMajorPerformanceCaveat: false,
     });
+
+    // WebGL context loss/restore handling
+    const canvas = m.getCanvas();
+    const handleContextLost = (e: Event) => {
+      e.preventDefault();
+      console.warn('[Map] WebGL context lost — attempting to restore...');
+      setWebglReady(false);
+    };
+    const handleContextRestored = () => {
+      console.log('[Map] WebGL context restored');
+      setWebglReady(true);
+      restoreAttempts.current = 0;
+      m.resize();
+    };
+    canvas.addEventListener('webglcontextlost', handleContextLost);
+    canvas.addEventListener('webglcontextrestored', handleContextRestored);
+
+    // If context was already lost before we attached listeners, try restoring
+    if (m.getCanvas().getContext('webgl')?.isContextLost() ?? false) {
+      console.warn('[Map] Context already lost on init — will retry');
+      setWebglReady(false);
+    }
 
     m.addControl(new maplibregl.NavigationControl(), 'top-right');
 
@@ -83,6 +111,41 @@ export default function Map() {
           paint: { 'text-color': '#ffffff' },
         });
 
+        // Radius circle overlay (behind markers)
+        m.addLayer({
+          id: 'markets-radius',
+          type: 'circle',
+          source: 'markets',
+          filter: ['!', ['has', 'point_count']],
+          paint: {
+            'circle-radius': [
+              'interpolate', ['exponential', 2], ['zoom'],
+              8, ['/', ['coalesce', ['get', 'radius'], 100], 610],
+              10, ['/', ['coalesce', ['get', 'radius'], 100], 152],
+              12, ['/', ['coalesce', ['get', 'radius'], 100], 38],
+              14, ['/', ['coalesce', ['get', 'radius'], 100], 9.5],
+              16, ['/', ['coalesce', ['get', 'radius'], 100], 2.4],
+            ],
+            'circle-color': ['match', ['get', 'category'],
+              'politics', '#ef4444',
+              'sports', '#3b82f6',
+              'economics', '#f59e0b',
+              'technology', '#8b5cf6',
+              '#6366f1'
+            ],
+            'circle-opacity': 0.12,
+            'circle-stroke-width': 1.5,
+            'circle-stroke-color': ['match', ['get', 'category'],
+              'politics', '#ef4444',
+              'sports', '#3b82f6',
+              'economics', '#f59e0b',
+              'technology', '#8b5cf6',
+              '#6366f1'
+            ],
+            'circle-stroke-opacity': 0.5,
+          },
+        });
+
         m.addLayer({
           id: 'markets-layer',
           type: 'circle',
@@ -110,11 +173,29 @@ export default function Map() {
           },
         });
 
+        // Click on circle → open sidebar (same as marker click)
+        m.on('click', 'markets-radius', (e) => {
+          const props = e.features?.[0]?.properties as Record<string, any>;
+          if (props?.contract_address) {
+            setCreateCoords(null);
+            setSelectedMarket(props as unknown as MarketProperties);
+          }
+        });
+
         m.on('click', 'markets-layer', (e) => {
           const props = e.features?.[0]?.properties as Record<string, any>;
           if (props?.contract_address) {
-            router.push(`/market/${props.contract_address}`);
+            setCreateCoords(null);
+            setSelectedMarket(props as unknown as MarketProperties);
           }
+        });
+
+        // Hover cursor on radius circles
+        m.on('mouseenter', 'markets-radius', () => {
+          m.getCanvas().style.cursor = 'pointer';
+        });
+        m.on('mouseleave', 'markets-radius', () => {
+          m.getCanvas().style.cursor = '';
         });
 
         m.on('click', 'clusters', (e) => {
@@ -147,9 +228,20 @@ export default function Map() {
 
     map.current = m;
     return () => {
+      canvas.removeEventListener('webglcontextlost', handleContextLost);
+      canvas.removeEventListener('webglcontextrestored', handleContextRestored);
       m.remove();
       map.current = null;
     };
+  }, []);
+
+  const handleMarketCreated = useCallback(() => {
+    setCreateCoords(null);
+    window.location.reload();
+  }, []);
+
+  const handleMarketClosed = useCallback(() => {
+    setSelectedMarket(null);
   }, []);
 
   return (
@@ -178,14 +270,33 @@ export default function Map() {
         Double-click map to create market
       </div>
       <div ref={mapContainer} style={{ width: '100%', height: '100%' }} />
+
+      {!webglReady && (
+        <div style={{
+          position: 'absolute', top: 0, left: 0, width: '100%', height: '100%',
+          background: 'rgba(15, 23, 42, 0.85)', display: 'flex', flexDirection: 'column',
+          alignItems: 'center', justifyContent: 'center', zIndex: 20, gap: 12,
+        }}>
+          <div style={{ fontSize: 14, color: '#f59e0b', fontWeight: 500 }}>
+            ⚠ Map unavailable — WebGL context lost
+          </div>
+          <div style={{ fontSize: 12, color: '#94a3b8' }}>
+            Attempting to restore... Try refreshing the page if this persists.
+          </div>
+          <button onClick={() => window.location.reload()} style={{
+            marginTop: 8, padding: '8px 20px', borderRadius: 6, border: 'none',
+            background: '#6366f1', color: '#fff', cursor: 'pointer', fontSize: 13,
+          }}>
+            Reload Page
+          </button>
+        </div>
+      )}
+
       {selectedMarket && (
         <MarketSidebar market={selectedMarket} onClose={() => setSelectedMarket(null)} />
       )}
       {createCoords && (
-        <CreateMarketModal coordinates={createCoords} onClose={() => setCreateCoords(null)} onCreated={() => {
-          setCreateCoords(null);
-          window.location.reload();
-        }} />
+        <CreateMarketModal coordinates={createCoords} onClose={() => setCreateCoords(null)} onCreated={handleMarketCreated} />
       )}
       <EventFeed />
     </div>

@@ -2,6 +2,85 @@
 
 Все значимые изменения в проекте фиксируются здесь в хронологическом порядке (от новых к старым).
 
+## [2026-05-09] – Hotfix: 500 error on market creation + WebGL context loss handling
+
+### Fixed
+- **Критический баг: POST /api/markets → 500 Internal Server Error**: Колонка `radius` отсутствовала в таблице `markets` SQLite из-за неверного синтаксиса `ALTER TABLE markets ADD COLUMN IF NOT EXISTS radius...` — `better-sqlite3` не поддерживает `IF NOT EXISTS` после `ADD COLUMN`. Исправлено: обёртка ALTER TABLE в try-catch, корректный синтаксис без `IF NOT EXISTS`. Колонка `address` также защищена try-catch.
+- **WebGL context loss**: В `Map.tsx` добавлены обработчики `webglcontextlost` (preventDefault + overlay с сообщением) и `webglcontextrestored` (resize + сброс состояния). Параметр `failIfMajorPerformanceCaveat: false` при инициализации карты. UI-оверлей с кнопкой Reload при потере контекста.
+
+### Changed
+- **lib/db.ts**: `ALTER TABLE ADD COLUMN` обёрнут в try-catch для защиты от ошибок при уже существующих колонках.
+- **components/Map.tsx**: добавлены `webglReady` state, `restoreAttempts` ref, обработчики `webglcontextlost`/`webglcontextrestored` на canvas, WebGL context-lost overlay (285px).
+
+### DevOps / Infrastructure
+- **data/georevolt.db**: добавлена отсутствующая колонка `radius` через ручной ALTER TABLE.
+
+## [2026-05-09] – Hotfix: webpack cache corruption — frontend не загружался
+
+### Fixed
+- **Критический баг**: Next.js dev-сервер не генерировал клиентские чанки (main-app.js, app/layout.js, app-pages-internals.js — 404). Корень: повреждённый webpack cache (`Caching failed for pack: Error: ENOENT`) и ошибки `Cannot find module './276.js'`/`./682.js'` при компиляции. Исправление: очистка `.next/cache/webpack` и `.next/static/chunks`, перезапуск dev-сервера с чистой компиляцией. Production-билд (`next build`) подтвердил корректность кода.
+
+### DevOps / Infrastructure
+- **Очистка кэша сборки**: удалены повреждённые `webpack/client-development/*.pack.gz`, SWC cache и `node_modules/.cache`. После `next build` (успешно) и перезапуска `next dev` все чанки отдаются 200, API работают, ошибок нет.
+
+## [2026-05-09] – Sprint 6 — Радиус, CI, индексация, порт
+
+### Added
+- **lib/db.ts** — добавлена колонка `radius` (REAL, DEFAULT 100) в таблицу `markets` (SQLite + PostgreSQL). Обновлены интерфейсы `Market`, `CreateMarketInput`, функции `normalizeRow`, `createMarket`, `toGeoJSON`.
+- **lib/db.ts** — добавлен индекс `idx_markets_lat_lng (lat, lng)` для SQLite и PostgreSQL (в дополнение к существующему `idx_markets_lng_lng`).
+- **app/api/markets/route.ts** — POST /api/markets принимает `body.radius` (по умолчанию 100).
+- **app/api/admin/batch-upload/route.ts** — batch-загрузка поддерживает `radius` (CSV + GeoJSON).
+- **.github/workflows/test.yml** — добавлен шаг `forge coverage --report lcov` и upload в Codecov.
+- **scripts/kill-port.sh** — скрипт для освобождения занятого порта (usage: `bash scripts/kill-port.sh [port]`).
+- **components/Map.tsx** — добавлен слой `markets-radius` (circle overlay) для отображения полупрозрачного круга радиуса вокруг каждого маркера. Раскраска по категориям (politics=red, sports=blue, economics=amber, technology=purple, default=indigo). Конвертация метров в пиксели через zoom-интерполяцию. Клик по кругу открывает сайдбар (как и клик по маркеру). Hover-курсор.
+- **components/CreateMarketModal.tsx** — добавлено поле `radius` (метры, по умолчанию 100, диапазон 10–5000) с описанием. Передаётся в POST /api/markets.
+- **scripts/bridge-matic.sh** — скрипт бриджа Sepolia ETH → Polygon Amoy MATIC + документация 9 рабочих кранов.
+- **scripts/migrations/004_sprint6.sql** — миграция PostgreSQL: radius, address колонки + idx_markets_lat_lng.
+
+### Changed
+- **TEST_REPORT.md** — Sprint 5.4 чеклист (17 сценариев) — все 17/17 подтверждены статусом [x].
+- **PLAN.md** — спринт 6: все 10 задач [x]. Бэклог обновлён.
+- **ARTIFACT_LOG.md** — добавлены записи: radius, idx_markets_lat_lng, миграция 004, bridge-matic.sh.
+
+## [2026-05-09] – Feature: address geocoding + sidebar price chart
+
+### Added
+- **components/CreateMarketModal.tsx** — добавлено поле «Address (optional)» с геокодированием через Nominatim (OpenStreetMap). Пользователь вводит адрес, нажимает «Find», координаты подставляются автоматически. Адрес сохраняется в БД и отображается в сайдбаре. Добавлен `coords` state для локального переопределения координат через адрес.
+- **components/PriceChart.tsx** — вынесен в отдельный компонент с `next/dynamic({ ssr: false })` для избежания ошибок recharts при статической генерации.
+- **lib/db.ts** — добавлено поле `address` в интерфейсы `Market`, `CreateMarketInput`, функции `normalizeRow`, `createMarket` (SQLite + PostgreSQL), `toGeoJSON`.
+
+### Changed
+- **components/Map.tsx** — клик по маркеру рынка открывает сайдбар вместо навигации (`router.push` → `setSelectedMarket`). В интерфейс `MarketProperties` добавлено поле `address`.
+- **components/MarketSidebar.tsx** — отображение адреса рынка (📍 address). График цены вынесен в динамический компонент `PriceChart`.
+- **app/api/markets/route.ts** — передача `body.address` в `createMarket`.
+
+## [2026-05-09] – Feature: sidebar price chart + marker click sidebar
+
+### Changed
+- **components/Map.tsx** — клик по маркеру рынка больше не ведёт на новую страницу (`router.push`). Вместо этого открывается боковая панель `MarketSidebar` справа. Добавлен `useCallback` для `handleMarketCreated`/`handleMarketClosed`. Удалён неиспользуемый `useRouter`.
+- **components/MarketSidebar.tsx** — добавлен график цены (recharts `LineChart` 140px) с историей цен YES/NO. Данные подгружаются через `fetch /api/price-history/[address]`. График рендерится только на клиенте (`mounted` guard), чтобы избежать ошибок recharts при статической генерации. Добавлен `mounted` state. Отображение контракта и категории в шапке.
+
+## [2026-05-09] – Fix: market creation cycle (approve + event address)
+
+### Fixed
+- **components/CreateMarketModal.tsx** — полный цикл создания рынка:
+  - Добавлен approve USDC (ERC20 `approve`) перед вызовом `createMarket`. Контракт `MarketFactory.createMarket()` вызывает `USDC.transferFrom()`, который требует предварительного approve. Без этого транзакция уходила в MetaMask, но ревертилась на цепи.
+  - После `createMarket` ожидается `TransactionReceipt` через `createPublicClient.waitForTransactionReceipt()`.
+  - Из логов receipt парсится событие `MarketCreated` для получения реального адреса развёрнутого маркета (через `decodeEventLog` + `parseAbiItem`).
+  - В POST `/api/markets` передаётся реальный `contract_address` из события, а не хардкодный `0x000...0001`.
+  - В UI добавлен `statusText`, показывающий текущий шаг (Approving USDC / Creating market / Waiting for confirmation / Saving to database).
+- **app/admin/page.tsx** — добавлен `mounted` guard (useState + useEffect) вокруг wagmi-зависимого рендера. На сервере `useAccount()` всегда возвращает `{ isConnected: false }`, а на клиенте после гидратации может быть `true` из-за persist в localStorage. Без guard React детектил mismatch и выдавал ошибку гидратации.
+- **components/AdminMarketsList.tsx** — `Date.now()` заменён на state-переменную `now`, инициализируемую через `useEffect`. На сервере `now = 0`, что даёт консервативный рендер (все маркеты показываются как "Open"), а на клиенте после монтирования `now` получает актуальное время.
+- **lib/web3.ts** — добавлен `ssr: true` в `createConfig()`, что предотвращает обращение wagmi к localStorage во время SSR.
+
+## [2025-05-09] – Fix: map tile style (OpenFreeMap → demo tiles)
+
+### Changed
+- **public/data/style-demo.json** — новый демо-стиль с raster-тайлами OpenStreetMap (tile.openstreetmap.org). MapLibre demotiles возвращали 404.
+- **components/Map.tsx** — переключён с `/data/style.json` (OpenFreeMap vector) на `/data/style-demo.json` (raster OSM).
+
+---
+
 ## [2025-05-09] – Спринт 5.4 — Полировка, E2E, документация, подготовка к продакшену
 
 ### Added

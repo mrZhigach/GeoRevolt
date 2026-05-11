@@ -35,6 +35,8 @@ export default function AdminMarketsList() {
   const [loading, setLoading] = useState(false);
   const [resolving, setResolving] = useState<number | null>(null);
   const [msg, setMsg] = useState('');
+  const [now, setNow] = useState(0);
+  useEffect(() => { setNow(Date.now()); }, []);
 
   const [status, setStatus] = useState<string>('');
   const [category, setCategory] = useState<string>('');
@@ -151,10 +153,10 @@ export default function AdminMarketsList() {
                     <td style={{ padding: '10px 12px' }}>
                       <span style={{
                         padding: '2px 8px', borderRadius: 10, fontSize: 11,
-                        background: m.resolved ? '#854d0e' : m.end_time * 1000 < Date.now() ? '#451a03' : '#166534',
+                        background: m.resolved ? '#854d0e' : m.end_time * 1000 < now ? '#451a03' : '#166534',
                         color: m.resolved ? '#fef08a' : '#bbf7d0',
                       }}>
-                        {m.resolved ? (m.outcome ? 'YES' : 'NO') : m.end_time * 1000 < Date.now() ? 'Closed' : 'Open'}
+                        {m.resolved ? (m.outcome ? 'YES' : 'NO') : m.end_time * 1000 < now ? 'Closed' : 'Open'}
                       </span>
                     </td>
                     <td style={{ padding: '10px 12px', textAlign: 'right', color: '#22c55e' }}>${m.liquidity.toFixed(2)}</td>
@@ -162,7 +164,7 @@ export default function AdminMarketsList() {
                       {new Date(m.end_time * 1000).toLocaleDateString()}
                     </td>
                     <td style={{ padding: '10px 12px', textAlign: 'center' }}>
-                      {!m.resolved && isConnected && Date.now() / 1000 >= m.resolution_time && (
+                      {!m.resolved && isConnected && now / 1000 >= m.resolution_time && (
                         <div style={{ display: 'flex', gap: 4, justifyContent: 'center' }}>
                           <button onClick={() => handleResolve(m, true)} disabled={resolving === m.id}
                             style={{ padding: '4px 10px', borderRadius: 4, border: 'none', cursor: 'pointer', background: '#22c55e', color: '#fff', fontSize: 11, fontWeight: 500, opacity: resolving === m.id ? 0.6 : 1 }}>
@@ -174,7 +176,7 @@ export default function AdminMarketsList() {
                           </button>
                         </div>
                       )}
-                      {!m.resolved && (!isConnected || Date.now() / 1000 < m.resolution_time) && (
+                      {!m.resolved && (!isConnected || now / 1000 < m.resolution_time) && (
                         <span style={{ color: '#64748b', fontSize: 11 }}>
                           {!isConnected ? 'Connect wallet' : new Date(m.resolution_time * 1000).toLocaleDateString()}
                         </span>

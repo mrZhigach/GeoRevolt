@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAccount, useConnect, useDisconnect } from 'wagmi';
 import { injected } from 'wagmi/connectors';
 import AdminDashboard from '@/components/AdminDashboard';
@@ -22,6 +22,8 @@ export default function AdminPage() {
   const { connect } = useConnect();
   const { disconnect } = useDisconnect();
   const [activeTab, setActiveTab] = useState('dashboard');
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => { setMounted(true); }, []);
 
   const isAdmin = !ADMIN_WALLET || (address && address.toLowerCase() === ADMIN_WALLET.toLowerCase());
 
@@ -30,7 +32,9 @@ export default function AdminPage() {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
         <h1 style={{ fontSize: 22, fontWeight: 600, margin: 0 }}>Admin Dashboard</h1>
         <div>
-          {isConnected ? (
+          {!mounted ? (
+            <span style={{ fontSize: 12, color: '#64748b' }}>...</span>
+          ) : isConnected ? (
             <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
               <span style={{ color: isAdmin ? '#22c55e' : '#ef4444', fontSize: 12 }}>
                 {address?.slice(0, 6)}...{address?.slice(-4)} {isAdmin ? '(admin)' : '(not admin)'}
