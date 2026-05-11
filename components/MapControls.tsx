@@ -1,8 +1,7 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Card } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import {
   Select,
@@ -19,26 +18,17 @@ import {
   SheetTrigger,
 } from '@/components/ui/sheet';
 import {
-  Search,
-  MapPin,
   SlidersHorizontal,
   Wallet,
   TrendingUp,
   BarChart3,
   Users,
   Grip,
-  RefreshCw,
 } from 'lucide-react';
 
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
-
-interface GeocodeResult {
-  display_name: string;
-  lat: string;
-  lon: string;
-}
 
 interface StatsData {
   totalMarkets: number;
@@ -72,19 +62,6 @@ const CATEGORIES = [
 ] as const;
 
 // ---------------------------------------------------------------------------
-// Geocoder helpers
-// ---------------------------------------------------------------------------
-
-async function geocode(query: string): Promise<GeocodeResult[]> {
-  const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=5`;
-  const res = await fetch(url, {
-    headers: { 'User-Agent': 'GeoRevolt/1.0' },
-  });
-  if (!res.ok) return [];
-  return res.json();
-}
-
-// ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
 
@@ -93,17 +70,9 @@ export default function MapControls({
   isConnected,
   onConnect,
   onDisconnect,
-  onFlyTo,
+  onFlyTo: _onFlyTo,
   onCategoryFilter,
 }: MapControlsProps) {
-  // === Search / Geocoder ===
-  const [query, setQuery] = useState('');
-  const [suggestions, setSuggestions] = useState<GeocodeResult[]>([]);
-  const [geocoding, setGeocoding] = useState(false);
-  const [showSuggestions, setShowSuggestions] = useState(false);
-  const debounceRef = useRef<ReturnType<typeof setTimeout>>();
-  const inputRef = useRef<HTMLInputElement>(null);
-
   // === Filters ===
   const [category, setCategory] = useState('all');
 
@@ -113,52 +82,6 @@ export default function MapControls({
 
   // === My Bets sheet ===
   const [myBetsOpen, setMyBetsOpen] = useState(false);
-
-  // -----------------------------------------------------------------------
-  // Geocoder debounced search
-  // -----------------------------------------------------------------------
-  const handleSearchInput = useCallback((value: string) => {
-    setQuery(value);
-    if (debounceRef.current) clearTimeout(debounceRef.current);
-
-    if (value.trim().length < 3) {
-      setSuggestions([]);
-      setShowSuggestions(false);
-      return;
-    }
-
-    debounceRef.current = setTimeout(async () => {
-      setGeocoding(true);
-      const results = await geocode(value);
-      setSuggestions(results);
-      setShowSuggestions(results.length > 0);
-      setGeocoding(false);
-    }, 400);
-  }, []);
-
-  const handleSelectSuggestion = useCallback(
-    (result: GeocodeResult) => {
-      setQuery(result.display_name);
-      setShowSuggestions(false);
-      setSuggestions([]);
-      onFlyTo(parseFloat(result.lon), parseFloat(result.lat));
-    },
-    [onFlyTo]
-  );
-
-  const handleSearchSubmit = useCallback(
-    async (e: React.FormEvent) => {
-      e.preventDefault();
-      if (!query.trim()) return;
-      setGeocoding(true);
-      const results = await geocode(query);
-      setGeocoding(false);
-      if (results.length > 0) {
-        handleSelectSuggestion(results[0]);
-      }
-    },
-    [query, handleSelectSuggestion]
-  );
 
   // -----------------------------------------------------------------------
   // Stats fetching (every 30s)
@@ -196,61 +119,12 @@ export default function MapControls({
   );
 
   // -----------------------------------------------------------------------
-  // Cleanup debounce
-  // -----------------------------------------------------------------------
-  useEffect(() => {
-    return () => {
-      if (debounceRef.current) clearTimeout(debounceRef.current);
-    };
-  }, []);
-
-  // -----------------------------------------------------------------------
   // Render
   // -----------------------------------------------------------------------
   return (
     <div className="flex flex-col gap-2 w-full">
       {/* ---- Main Control Card ---- */}
       <Card className="glass rounded-xl shadow-lg p-3 space-y-3 transition-soft">
-        {/* Search form */}
-        <form onSubmit={handleSearchSubmit} className="relative">
-          <div className="relative">
-            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
-            <Input
-              ref={inputRef}
-              placeholder="Search address or place..."
-              value={query}
-              onChange={(e) => handleSearchInput(e.target.value)}
-              onFocus={() => {
-                if (suggestions.length > 0) setShowSuggestions(true);
-              }}
-              onBlur={() => {
-                // Delay to allow click on suggestion
-                setTimeout(() => setShowSuggestions(false), 200);
-              }}
-              className="pl-8 h-9 text-sm bg-background/60 border-border/50 placeholder:text-muted-foreground/60"
-            />
-            {geocoding && (
-              <RefreshCw className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground animate-spin" />
-            )}
-          </div>
-
-          {/* Geocoder suggestions */}
-          {showSuggestions && (
-            <Card className="absolute top-full left-0 right-0 mt-1 z-20 max-h-48 overflow-y-auto rounded-lg shadow-xl border-border/50">
-              {suggestions.map((s, i) => (
-                <button
-                  key={i}
-                  type="button"
-                  onMouseDown={() => handleSelectSuggestion(s)}
-                  className="w-full text-left px-3 py-2 text-xs text-foreground/80 hover:bg-accent/20 transition-colors flex items-start gap-2 border-b border-border/30 last:border-0"
-                >
-                  <MapPin className="w-3.5 h-3.5 text-primary shrink-0 mt-0.5" />
-                  <span className="line-clamp-2">{s.display_name}</span>
-                </button>
-              ))}
-            </Card>
-          )}
-        </form>
 
         {/* Category filter */}
         <div className="flex items-center gap-2">

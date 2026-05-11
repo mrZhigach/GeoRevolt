@@ -8,6 +8,9 @@ import MarketPopup from './MarketPopup';
 import MarketSidebar from './MarketSidebar';
 import CreateMarketModal from './CreateMarketModal';
 import EventFeed from './EventFeed';
+import LocateButton from './LocateButton';
+import StatsCard from './StatsCard';
+import Geocoder from './Geocoder';
 import { useAccount, useConnect, useDisconnect } from 'wagmi';
 import { injected } from 'wagmi/connectors';
 import { Plus } from 'lucide-react';
@@ -46,12 +49,42 @@ export default function Map() {
   const { connect } = useConnect();
   const { disconnect } = useDisconnect();
 
-  // ---- Fly-to handler (from geocoder) ----
+  // ---- Fly-to handler (from geocoder / locate) ----
   const handleFlyTo = useCallback((lng: number, lat: number) => {
     if (map.current) {
       map.current.flyTo({ center: [lng, lat], zoom: 12, duration: 1500 });
     }
   }, []);
+
+  // ---- Locate handler for LocateButton ----
+  const handleLocate = useCallback((lng: number, lat: number) => {
+    handleFlyTo(lng, lat);
+    // Add a temporary marker for the located position
+    if (map.current) {
+      // Remove old locate marker if exists
+      const oldMarker = document.getElementById('locate-marker');
+      if (oldMarker) oldMarker.remove();
+
+      // Create a blue circle marker
+      const el = document.createElement('div');
+      el.id = 'locate-marker';
+      el.style.cssText = `
+        width: 20px; height: 20px; border-radius: 50%;
+        background: #3b82f6; border: 3px solid white;
+        box-shadow: 0 0 10px rgba(59,130,246,0.5);
+        cursor: pointer;
+      `;
+      new maplibregl.Marker({ element: el })
+        .setLngLat([lng, lat])
+        .addTo(map.current!);
+
+      // Auto-remove marker after 5 seconds
+      setTimeout(() => {
+        const m = document.getElementById('locate-marker');
+        if (m) m.remove();
+      }, 5000);
+    }
+  }, [handleFlyTo]);
 
   // ---- Category filter handler ----
   const handleCategoryFilter = useCallback((category: string) => {
@@ -339,6 +372,41 @@ export default function Map() {
           });
         });
 
+        // ---- Reverse geocoding on background click ----
+        let reverseGeocodeTimer: ReturnType<typeof setTimeout> | null = null;
+
+        m.on('click', async (e) => {
+          // Ignore clicks on market features (handled by existing layer click handlers)
+          const features = m.queryRenderedFeatures(e.point, {
+            layers: ['markets-radius', 'markets-layer', 'clusters'],
+          });
+          if (features.length > 0) return;
+
+          // Debounce: wait 300ms to distinguish single-click from double-click
+          if (reverseGeocodeTimer) clearTimeout(reverseGeocodeTimer);
+          reverseGeocodeTimer = setTimeout(async () => {
+            reverseGeocodeTimer = null;
+            try {
+              const res = await fetch(
+                `https://nominatim.openstreetmap.org/reverse?format=json&lat=${e.lngLat.lat}&lon=${e.lngLat.lng}`,
+                { headers: { 'User-Agent': 'GeoRevolt/1.0' } },
+              );
+              if (res.ok) {
+                const data = await res.json();
+                const address = data.display_name || 'Unknown location';
+                new maplibregl.Popup()
+                  .setLngLat(e.lngLat)
+                  .setHTML(
+                    `<div style="font-size:12px;color:hsl(var(--foreground));max-width:250px;line-height:1.4">📍 ${address}</div>`,
+                  )
+                  .addTo(m);
+              }
+            } catch {
+              // Silently ignore network / parse errors
+            }
+          }, 300);
+        });
+
         m.on('dblclick', (e) => {
           if (e.lngLat) {
             setSelectedMarket(null);
@@ -386,8 +454,11 @@ export default function Map() {
 
   return (
     <div style={{ position: 'relative', width: '100%', height: '100vh' }}>
-      {/* ---- Left panel: MapControls + EventFeed ---- */}
+      {/* ---- Left panel: Geocoder + MapControls + EventFeed ---- */}
       <div className="fixed top-16 left-2 sm:left-4 z-40 w-[280px] sm:w-[340px] flex flex-col gap-2">
+        {/* Geocoder search */}
+        <Geocoder onSelect={(lng, lat) => handleFlyTo(lng, lat)} />
+        {/* Existing controls */}
         <MapControls
           walletAddress={address}
           isConnected={isConnected}
@@ -398,6 +469,14 @@ export default function Map() {
         />
         {!showSidebar && !createCoords && <EventFeed />}
       </div>
+
+      {/* ---- Locate Button (top-right) ---- */}
+      <div className="fixed top-20 right-4 z-45">
+        <LocateButton onLocate={handleLocate} />
+      </div>
+
+      {/* ---- Stats Card (bottom-right) ---- */}
+      <StatsCard />
 
       {/* ---- New Market button (bottom-left) ---- */}
       <div style={{ position: 'absolute', bottom: 12, left: 12, zIndex: 45, display: 'flex', gap: 8 }}>
@@ -414,7 +493,7 @@ export default function Map() {
         </button>
       </div>
 
-      {/* ---- Hint (bottom-right) ---- */}
+      {/* ---- Hint (bottom-right, behind StatsCard) ---- */}
       <div style={{ position: 'absolute', bottom: 12, right: 12, zIndex: 45 }} className="glass rounded-lg px-3 py-1.5 text-[11px] text-muted-foreground">
         Double-click map to create market
       </div>

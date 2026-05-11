@@ -78,6 +78,12 @@
 |----|--------|----|--------|-------|---------|--------------|
 | HF.11 | **EventFeed restyle + reposition** — полный рестайлинг на Tailwind/shadcn, перемещение под MapControls в левую колонку, скрытие на мобильных | 2 | [x] | @frontend-dev | 2026-05-11 | ✅ EventFeed.tsx: Tailwind + shadcn/ui Card, Map.tsx: общий контейнер, MapControls.tsx: убран fixed. 27/27 Playwright PASS |
 
+## Дизайн / Enhanced (ветка `design/enhanced`)
+
+| ID | Задача | SP | Статус | Агент | Дедлайн | Комментарий |
+|----|--------|----|--------|-------|---------|--------------|
+| DE.1 | **Reverse geocoding на клик по фону карты** — клик на пустую область → Nominatim API → Popup с адресом. Debounce 300ms для отличия от dblclick. Существующие хендлеры не тронуты | 2 | [x] | @cartography-engineer | 2026-05-11 | ✅ Map.tsx: новый click-хендлер с reverse geocoding через Nomintim, MapLibre Popup |
+
 ## Бэклог
 - PMTiles для РФ (ждём Planetiler на 48 GB RAM)
 - Деплой на Polygon Amoy (#11)

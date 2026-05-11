@@ -2,6 +2,35 @@
 
 Все значимые изменения в проекте фиксируются здесь в хронологическом порядке (от новых к старым).
 
+## [2026-05-11] — Release v1.6.0 — Enhanced Design: dark map tiles, Geocoder, StatsCard, LocateButton, MarketSidebar restyle
+
+### Added
+- **Dark OSM tiles** — `app/globals.css`: фильтр `invert(90%) hue-rotate(180deg) brightness(0.85) contrast(1.1) saturate(0.5)` на canvas MapLibre. Тёмная тема без смены источника тайлов. Маркеры и круги не фильтруются (рендерятся выше canvas).
+- **MapLibre controls dark theme** — переопределены стили `.maplibregl-ctrl-group`: glass-фон, blur, тёмная граница. Кнопки контролов: цвет `#e5e7eb`.
+- **`components/Geocoder.tsx`** — новый улучшенный поиск с автодополнением через Nominatim (debounce 300ms), выпадающий список с MapPin + название + адрес, кнопка очистки, spinner загрузки, empty state "No results found", закрытие по клику вне и Escape. Заменяет inline-геокодер в MapControls.
+- **`components/StatsCard.tsx`** — плавающая карточка статистики: totalMarkets, totalLiquidityUSDC, activeMarkets. Позиция `fixed bottom-6 right-6`, стиль `card-glass`, автообновление 30s. Скрыта на мобильных.
+- **`components/LocateButton.tsx`** — кнопка геолокации с иконкой Crosshair. Использует `navigator.geolocation.getCurrentPosition`, центрирует карту, добавляет временный синий маркер (5 сек). Spinner-анимация при поиске.
+- **Reverse geocoding on map click** — `Map.tsx`: при клике на пустую область карты (не на маркеры/кластеры) выполняется Nominatim reverse geocode, адрес показывается в MapLibre Popup. 300ms debounce для отличия от dblclick.
+- **MarketSidebar → card-glass** — полный рефакторинг `MarketSidebar.tsx`: ~170 строк inline-стилей заменены на Tailwind + shadcn/ui (Badge, Button, Input, Card, CardContent). Компонент `card-glass` применён ко всем карточкам (PriceBox, Trade, Redeem, Price History, Discussions).
+
+### Changed
+- `components/MapControls.tsx` — удалён inline-геокодер (заменён на Geocoder), удалены неиспользуемые импорты (Search, MapPin, RefreshCw, Input, useRef), удалён debounceRef + geoCoder state
+- `components/Map.tsx` — добавлены импорты Geocoder, LocateButton, StatsCard; левая панель теперь: Geocoder → MapControls → EventFeed; добавлены LocateButton (top-right) и StatsCard (bottom-right)
+- `components/MapControls.tsx` — Stats mini card сохранена (дублирование с StatsCard, но в левой панели)
+
+### Fixed
+- `components/MarketSidebar.tsx` — все inline-стили заменены на Tailwind, удалены хардкодные цвета (`#1a1a2e`, `#16213e`, `#e2e8f0` → CSS-переменные `bg-card`, `text-foreground`, etc.)
+
+### DevOps / Infrastructure
+- Package.json version 1.6.0
+- 11/12 Jest API tests, build — all passing
+- docs validation PASS
+
+## [2026-05-11] — Reverse geocoding on background map click
+
+### Added
+- **components/Map.tsx** — добавлен reverse geocoding при клике на пустую область карты (не на маркеры/кластеры). При клике на фон выполняется запрос к Nominatim API (`https://nominatim.openstreetmap.org/reverse`) с User-Agent `GeoRevolt/1.0`, результат отображается в MapLibre Popup с адресом. Используется 300ms debounce для отличия одиночного клика от двойного (dblclick → создание рынка). Существующие обработчики кликов по маркерам, кластерам и dblclick не изменены.
+
 ## [2026-05-11] — EventFeed restyled with Tailwind/shadcn + moved under MapControls
 
 ### Changed

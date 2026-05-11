@@ -1,6 +1,6 @@
 # GeoRevolt
 
-[![Version](https://img.shields.io/badge/version-1.3.0-green.svg)](https://github.com/mrZhigach/GeoRevolt/releases/tag/v1.3.0)
+[![Version](https://img.shields.io/badge/version-1.6.0-green.svg)](https://github.com/mrZhigach/GeoRevolt/releases/tag/v1.6.0)
 [![License: AGPL v3](https://img.shields.io/badge/License-AGPL%20v3-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
 [![CI](https://github.com/mrZhigach/GeoRevolt/actions/workflows/test.yml/badge.svg)](https://github.com/mrZhigach/GeoRevolt/actions/workflows/test.yml)
 

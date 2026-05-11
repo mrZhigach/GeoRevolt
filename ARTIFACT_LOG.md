@@ -92,6 +92,8 @@
 | Release v1.2.0 | 1.2.0 | 2026-05-11 | PPLX Design |
 | Release v1.3.0 | 1.3.0 | 2026-05-11 | Dashboard Redesign |
 | Release v1.4.0 | 1.4.0 | 2026-05-11 | Stability & UI fixes |
+| Release v1.5.0 | 1.5.0 | 2026-05-11 | — |
+| Release v1.6.0 | 1.6.0 | 2026-05-11 | Enhanced Design: dark map, Geocoder, StatsCard, LocateButton, MarketSidebar restyle |
 
 ## API — Базовые
 | Эндпоинт | Описание | Дата |
@@ -124,11 +126,15 @@
 | `app/page.tsx` | Главная страница (динамический импорт карты) | 2025-05-09 |
 | `app/layout.tsx` | Корневой layout (Web3Provider, UI) | 2025-05-09 |
 | `app/globals.css` | Глобальные стили | 2025-05-09 |
-| `components/Map.tsx` | Карта MapLibre GL JS (OSM raster): маркеры, кластеризация, dblclick → создание, клик → сайдбар | 2025-05-09 |
-| `components/MarketSidebar.tsx` | Боковая панель: информация, Buy/Sell/Redeem, график цены (recharts), адрес | 2025-05-09 |
+| `components/Map.tsx` | Карта MapLibre GL JS (OSM raster): маркеры, кластеризация, dblclick → создание, клик → сайдбар, reverse geocoding на клик по фону, LocateButton + StatsCard + Geocoder интеграция | 2025-05-09 |
+| `components/MarketSidebar.tsx` | Боковая панель: информация, Buy/Sell/Redeem, график цены (recharts), адрес, Discussions. card-glass стиль (refactored v2). | 2025-05-09 |
 | `components/CreateMarketModal.tsx` | Форма создания рынка: Nominatim геокодинг, approve USDC, деплой, POST в БД | 2025-05-09 |
+| `components/MapControls.tsx` | Карточка управления: фильтр категорий, кошелёк, My Bets, stats mini-card. Geocoder вынесен в отдельный компонент. | 2026-05-11 |
 | `components/EventFeed.tsx` | Лента событий (auto-refresh 15с) | 2025-05-09 |
 | `components/PriceChart.tsx` | Динамический recharts LineChart (140px, SSR disabled) | 2026-05-09 |
+| `components/Geocoder.tsx` | Улучшенный поиск Nominatim с debounce 300ms, выпадающий список, очистка, spinner | 2026-05-11 |
+| `components/StatsCard.tsx` | Плавающая карточка статистики (fixed bottom-6 right-6, card-glass, auto-refresh 30s) | 2026-05-11 |
+| `components/LocateButton.tsx` | Кнопка геолокации (Crosshair, glass, spinner при поиске) | 2026-05-11 |
 
 ## Фронтенд — Страница рынка (Sprint 5.2)
 | Компонент | Описание | Дата |

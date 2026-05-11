@@ -149,7 +149,33 @@
   }
 }
 
-/* MapLibre overrides */
+/* ===== MapLibre Dark Tiles (Hantavirus-style) ===== */
+/* Invert light OSM tiles to dark while preserving details */
+.maplibregl-canvas-container canvas {
+  filter: invert(90%) hue-rotate(180deg) brightness(0.85) contrast(1.1) saturate(0.5);
+}
+
+/* MapLibre Controls — dark theme */
+.maplibregl-ctrl-group {
+  background: hsla(0, 0%, 6%, 0.75) !important;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid hsla(0, 0%, 100%, 0.08) !important;
+  border-radius: 0.75rem !important;
+  overflow: hidden;
+}
+.maplibregl-ctrl button {
+  color: #e5e7eb !important;
+  border-color: transparent !important;
+}
+.maplibregl-ctrl button:hover {
+  background: hsla(0, 0%, 14.9%, 0.8) !important;
+}
+.maplibregl-ctrl-group button + button {
+  border-top: 1px solid hsla(0, 0%, 100%, 0.06) !important;
+}
+
+/* MapLibre overrides — popup styling */
 .maplibregl-popup {
   max-width: 300px;
 }
