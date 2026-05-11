@@ -2,6 +2,57 @@
 
 Все значимые изменения в проекте фиксируются здесь в хронологическом порядке (от новых к старым).
 
+## [2026-05-11] – Sprint 8 — Dashboard redesign: navigation, view toggle, comments, admin panel
+
+### Added
+- **Глобальная навигация (8.1):** новый AppHeader с гамбургер-меню (Sheet), глобальный поиск, переключатель темы (тёмная/светлая), выбор языка (заглушка), профиль/кошелёк с балансом через wagmi `useBalance`. Desktop-навигация: Map, Markets List, Admin.
+- **Поддержка светлой темы:** в `globals.css` добавлены CSS-переменные `.light` для светлой темы, переключение через localStorage.
+- **ViewToggle (8.2):** компонент `ViewToggle` — две кнопки "Map" / "List" с состоянием в URL (`?view=map` или `?view=list`). Главная страница `app/page.tsx` переписана для поддержки обоих режимов.
+- **MarketsList (8.2):** компонент `MarketsList` — грид карточек рынков (3 колонки на десктопе, 1 на мобильном), категорийный фильтр, поиск, пагинация "Load More", цены YES/NO с ProgressBar, кнопки быстрой покупки.
+- **Paginated API (8.2):** GET `/api/markets` теперь поддерживает query-параметры `page`, `limit`, `category`, `search`. Добавлена функция `getFilteredMarkets()` в `lib/db.ts`.
+- **Система комментариев (8.4):**
+  - БД: таблица `comments` (id, market_address, user_address, parent_id, content, created_at, updated_at) для SQLite и PostgreSQL.
+  - API: GET `/api/markets/by-address/[address]/comments` (пагинация, вложенные ответы), POST (создание), DELETE `/api/comments/[id]` (удаление владельцем).
+  - Фронтенд: `CommentsSection` — дерево комментариев с отступами, аватар (shadcn/Avatar), обрезанный адрес кошелька, форма нового комментария, кнопки Reply/Delete.
+  - Страница `/market/[address]` — добавлена вкладка "Discussions" (shadcn/Tabs) с переключением Overview/Discussions.
+- **Улучшенная Admin-панель (8.5):**
+  - `app/admin/page.tsx` — полностью переписана с shadcn/Tabs и новым дизайном.
+  - `AdminDashboard` — 4 метрические карточки (Total Markets, Total Liquidity, Active, Resolved), PieChart (Liquidity by Category), BarChart (Top Markets), LineChart (Daily Activity mock), Category Summary с прогресс-барами.
+  - `AdminBatchUpload` — прогресс-бар загрузки, file info карточка, улучшенный отчёт с визуализацией успехов/ошибок.
+  - `AdminAllowedCountries` — новый дизайн с Input + Button, badges для стран, кликабельные common country codes, сообщения об успехе/ошибке.
+- **E2E-тесты Sprint 8 (8.6):** новый `e2e/sprint8.spec.ts` — 15 тестов: Comments API (CRUD, валидация), ViewToggle API (paginated, фильтры), Frontend (tabs, header, discussions), Mobile (hamburger, viewport), Batch Upload.
+- **Mobile-адаптация:** EventFeed скрыт на мобильных (`hidden lg:block`), MapControls уже на мобильных (`w-[280px] sm:w-[340px]`), список рынков в 1 колонку на `xs`, гамбургер-меню только на `md:hidden`.
+
+### Changed
+- **components/AppHeader.tsx** — полностью переписан: добавлены Sheet (гамбургер), DropdownMenu (язык, профиль), поиск, переключатель темы, мобильная навигация.
+- **components/MapControls.tsx** — адаптивная ширина на мобильных (`w-[280px] sm:w-[340px]`).
+- **components/EventFeed.tsx** — скрыт на экранах меньше `lg` (`hidden lg:block`).
+- **app/layout.tsx** — добавлен класс `dark` на `<html>` для явной тёмной темы.
+- **app/globals.css** — добавлена светлая тема (`.light`), CSS-переменные для всех компонентов.
+- **app/api/markets/route.ts** — GET теперь принимает query-параметры (page, limit, category, search) с вызовом `getFilteredMarkets()`.
+- **app/page.tsx** — переписан с поддержкой `?view=list` (MarketsList) и `?view=map` (Map).
+- **app/market/[address]/page.tsx** — добавлены Tabs (Overview/Discussions), интеграция CommentsSection.
+
+### Fixed
+- **SSR window is not defined** — в AppHeader убраны прямые обращения к `window` в теле компонента.
+
+### Technical Debt
+- Добавлены новые shadcn/ui компоненты: dropdown-menu, tabs, avatar, progress, separator, badge, switch, scroll-area.
+- `getFilteredMarkets()` — новая функция фильтрации и пагинации в lib/db.ts.
+
+### DevOps / Infrastructure
+- Новая API-ручка: `/api/markets/by-address/[address]/comments` (GET/POST).
+- Новая API-ручка: `/api/comments/[id]` (DELETE).
+
+## [2026-05-11] – Sprint 7 — Hotfix: Cannot update an unmounted root + Input forwardRef
+
+### Fixed
+- **Критический баг: `Cannot update an unmounted root` в MarketPopup.tsx** — асинхронный `fetchPrices` продолжал вызывать `root.render()` после закрытия popup и размонтирования root. Исправлено: добавлен `mountedRef` для отслеживания состояния монтирования, проверка `if (!mountedRef.current || !rootRef.current) return;` перед каждым `root.render()`, try-catch вокруг `root.unmount()`, `onClose` добавлен в dependency array эффекта. Также устранена мутация пропа `market` — вместо неё создаётся новый объект через `{ ...market, ...overrides }`.
+- **Предупреждение: `Function components cannot be given refs` в MapControls.tsx → input.tsx** — компонент `Input` из shadcn/ui не был обёрнут в `React.forwardRef`, хотя `MapControls` передавал ему `ref={inputRef}`. Исправлено: `Input` обёрнут в `React.forwardRef`, ref пробрасывается в `InputPrimitive`.
+
+### Changed
+- **components/ui/input.tsx** — заменена декларация `function Input(...)` на `React.forwardRef<HTMLInputElement, React.ComponentProps<"input">>(...)`.
+
 ## [2026-05-11] – Sprint 7 — Премиальный дизайн PPLX (Task 7.1: Дизайн-система)
 
 ### Added

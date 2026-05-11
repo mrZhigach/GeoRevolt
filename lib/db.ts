@@ -112,6 +112,20 @@ function initSqliteSchema(db: any) {
       PRIMARY KEY (lat, lng)
     );
   `);
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS comments (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      market_address TEXT NOT NULL,
+      user_address TEXT NOT NULL,
+      parent_id INTEGER,
+      content TEXT NOT NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+      FOREIGN KEY (parent_id) REFERENCES comments(id) ON DELETE CASCADE
+    );
+    CREATE INDEX IF NOT EXISTS idx_comments_market ON comments(market_address);
+    CREATE INDEX IF NOT EXISTS idx_comments_parent ON comments(parent_id);
+  `);
 }
 
 async function initPgSchema(pool: Pool) {
@@ -174,6 +188,19 @@ async function initPgSchema(pool: Pool) {
       PRIMARY KEY (lat, lng)
     );
   `);
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS comments (
+      id SERIAL PRIMARY KEY,
+      market_address TEXT NOT NULL,
+      user_address TEXT NOT NULL,
+      parent_id INTEGER REFERENCES comments(id) ON DELETE CASCADE,
+      content TEXT NOT NULL,
+      created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+    );
+    CREATE INDEX IF NOT EXISTS idx_comments_market ON comments(market_address);
+    CREATE INDEX IF NOT EXISTS idx_comments_parent ON comments(parent_id);
+  `);
 }
 
 function normalizeRow(row: DBRow): Market {
@@ -224,6 +251,111 @@ export interface AppEvent {
   created_at: string;
 }
 
+export interface Comment {
+  id: number;
+  market_address: string;
+  user_address: string;
+  parent_id: number | null;
+  content: string;
+  created_at: string;
+  updated_at: string;
+  replies?: Comment[];
+}
+
+export interface CreateCommentInput {
+  market_address: string;
+  user_address: string;
+  parent_id?: number | null;
+  content: string;
+}
+
+export async function getCommentsByMarket(
+  marketAddress: string,
+  page: number = 1,
+  limit: number = 20
+): Promise<Comment[]> {
+  const offset = (page - 1) * limit;
+  if (usePostgres()) {
+    const pool = await getPgPool();
+    const result = await pool.query(
+      `SELECT * FROM comments WHERE market_address = $1 AND parent_id IS NULL
+       ORDER BY created_at DESC LIMIT $2 OFFSET $3`,
+      [marketAddress, limit, offset]
+    );
+    const comments = result.rows;
+    // Fetch replies for each comment
+    for (const comment of comments) {
+      const repliesResult = await pool.query(
+        `SELECT * FROM comments WHERE parent_id = $1 ORDER BY created_at ASC`,
+        [comment.id]
+      );
+      comment.replies = repliesResult.rows;
+    }
+    return comments;
+  }
+  const db = await getSqliteDb();
+  const comments = db.prepare(
+    `SELECT * FROM comments WHERE market_address = ? AND parent_id IS NULL
+     ORDER BY created_at DESC LIMIT ? OFFSET ?`
+  ).all(marketAddress, limit, offset) as Comment[];
+  // Fetch replies for each comment
+  for (const comment of comments) {
+    comment.replies = db.prepare(
+      `SELECT * FROM comments WHERE parent_id = ? ORDER BY created_at ASC`
+    ).all(comment.id) as Comment[];
+  }
+  return comments;
+}
+
+export async function createComment(input: CreateCommentInput): Promise<Comment> {
+  if (usePostgres()) {
+    const pool = await getPgPool();
+    const result = await pool.query(
+      `INSERT INTO comments (market_address, user_address, parent_id, content)
+       VALUES ($1, $2, $3, $4) RETURNING *`,
+      [input.market_address, input.user_address, input.parent_id ?? null, input.content]
+    );
+    return result.rows[0];
+  }
+  const db = await getSqliteDb();
+  const stmt = db.prepare(
+    `INSERT INTO comments (market_address, user_address, parent_id, content)
+     VALUES (@market_address, @user_address, @parent_id, @content)`
+  );
+  const result = stmt.run({
+    market_address: input.market_address,
+    user_address: input.user_address,
+    parent_id: input.parent_id ?? null,
+    content: input.content,
+  });
+  return db.prepare('SELECT * FROM comments WHERE id = ?').get(result.lastInsertRowid) as Comment;
+}
+
+export async function deleteComment(id: number, userAddress: string): Promise<boolean> {
+  if (usePostgres()) {
+    const pool = await getPgPool();
+    const result = await pool.query(
+      `DELETE FROM comments WHERE id = $1 AND user_address = $2`,
+      [id, userAddress]
+    );
+    return (result.rowCount ?? 0) > 0;
+  }
+  const db = await getSqliteDb();
+  const result = db.prepare('DELETE FROM comments WHERE id = ? AND user_address = ?').run(id, userAddress);
+  return result.changes > 0;
+}
+
+export async function getCommentCount(marketAddress: string): Promise<number> {
+  if (usePostgres()) {
+    const pool = await getPgPool();
+    const result = await pool.query('SELECT COUNT(*) as count FROM comments WHERE market_address = $1', [marketAddress]);
+    return parseInt(result.rows[0].count, 10);
+  }
+  const db = await getSqliteDb();
+  const row = db.prepare('SELECT COUNT(*) as count FROM comments WHERE market_address = ?').get(marketAddress) as { count: number };
+  return row.count;
+}
+
 export interface CreateMarketInput {
   contract_address: string;
   name: string;
@@ -248,6 +380,60 @@ export async function getAllMarkets(): Promise<Market[]> {
   const db = await getSqliteDb();
   const rows = db.prepare('SELECT * FROM markets ORDER BY created_at DESC').all() as DBRow[];
   return rows.map(normalizeRow);
+}
+
+export async function getFilteredMarkets({
+  page = 1,
+  limit = 50,
+  category = '',
+  search = '',
+}: {
+  page?: number;
+  limit?: number;
+  category?: string;
+  search?: string;
+}): Promise<{ markets: Market[]; total: number }> {
+  const offset = (page - 1) * limit;
+  const conditions: string[] = [];
+  const params: any[] = [];
+  let paramIdx = 1;
+
+  if (category && category !== 'all') {
+    if (usePostgres()) {
+      conditions.push(`category = $${paramIdx++}`);
+      params.push(category);
+    } else {
+      conditions.push(`category = ?`);
+      params.push(category);
+    }
+  }
+
+  if (search) {
+    const likeClause = usePostgres() ? `$${paramIdx++}` : '?';
+    conditions.push(`(name LIKE ${likeClause} OR description LIKE ${likeClause})`);
+    params.push(`%${search}%`);
+  }
+
+  const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+
+  if (usePostgres()) {
+    const pool = await getPgPool();
+    const countResult = await pool.query(`SELECT COUNT(*) as count FROM markets ${whereClause}`, params);
+    const total = parseInt(countResult.rows[0].count, 10);
+    const dataResult = await pool.query(
+      `SELECT * FROM markets ${whereClause} ORDER BY created_at DESC LIMIT ${limit} OFFSET ${offset}`,
+      params
+    );
+    return { markets: dataResult.rows.map(normalizeRow), total };
+  }
+
+  const db = await getSqliteDb();
+  const countRow = db.prepare(`SELECT COUNT(*) as count FROM markets ${whereClause}`).get(...params) as { count: number };
+  const total = countRow.count;
+  const rows = db.prepare(
+    `SELECT * FROM markets ${whereClause} ORDER BY created_at DESC LIMIT ? OFFSET ?`
+  ).all(...params, limit, offset) as DBRow[];
+  return { markets: rows.map(normalizeRow), total };
 }
 
 export async function getMarketById(id: number): Promise<Market | undefined> {

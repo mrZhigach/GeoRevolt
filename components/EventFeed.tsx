@@ -42,11 +42,11 @@ export default function EventFeed() {
   }
 
   return (
-    <div style={{
-      position: 'absolute', top: 12, right: 12, zIndex: 5,
-      width: 300, maxHeight: 'calc(100vh - 80px)', overflowY: 'auto',
-      background: '#1a1a2e', border: '1px solid #334155', borderRadius: 8,
-      padding: 12, fontSize: 12, color: '#cbd5e1',
+    <div className="hidden lg:block" style={{
+      position: 'absolute', top: 16, right: 16, zIndex: 10,
+      width: collapsed ? 48 : 280, background: 'rgba(15, 23, 42, 0.85)',
+      backdropFilter: 'blur(8px)', borderRadius: 12, border: '1px solid #1e293b',
+      transition: 'width 0.3s ease',
     }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
         <span style={{ fontWeight: 600, fontSize: 13 }}>Live Events</span>

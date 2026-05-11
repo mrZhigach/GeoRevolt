@@ -1,12 +1,26 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { Globe, Plus, X, Loader2, ChevronDown, ChevronUp } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
+
+const COMMON_COUNTRIES = [
+  'US', 'GB', 'DE', 'FR', 'IT', 'ES', 'CA', 'AU', 'JP', 'CN', 'IN', 'BR',
+  'RU', 'KR', 'NL', 'CH', 'SE', 'NO', 'FI', 'DK', 'PL', 'UA', 'IL', 'AE',
+  'SG', 'HK', 'TW', 'TH', 'VN', 'MY', 'ID', 'PH', 'NZ', 'ZA', 'NG', 'KE',
+  'EG', 'AR', 'MX', 'CO', 'CL', 'PE',
+];
 
 export default function AdminAllowedCountries() {
   const [countries, setCountries] = useState<string[]>([]);
   const [newCode, setNewCode] = useState('');
   const [loading, setLoading] = useState(true);
   const [msg, setMsg] = useState('');
+  const [msgType, setMsgType] = useState<'success' | 'error' | 'info'>('info');
+  const [showCommon, setShowCommon] = useState(false);
 
   const fetchCountries = () => {
     setLoading(true);
@@ -21,14 +35,20 @@ export default function AdminAllowedCountries() {
 
   useEffect(() => { fetchCountries(); }, []);
 
+  const showMessage = (text: string, type: 'success' | 'error' | 'info' = 'info') => {
+    setMsg(text);
+    setMsgType(type);
+    setTimeout(() => setMsg(''), 3000);
+  };
+
   const addCountry = async () => {
     const code = newCode.toUpperCase().trim();
     if (!code || !/^[A-Z]{2}$/.test(code)) {
-      setMsg('Enter a valid ISO-3166-1 alpha-2 code (e.g. US, RU, GB)');
+      showMessage('Enter a valid ISO-3166-1 alpha-2 code (e.g. US, RU, GB)', 'error');
       return;
     }
     if (countries.includes(code)) {
-      setMsg('Country already in list');
+      showMessage('Country already in list', 'error');
       return;
     }
 
@@ -43,12 +63,12 @@ export default function AdminAllowedCountries() {
         const data = await res.json();
         setCountries(data.countries);
         setNewCode('');
-        setMsg(`Added ${code}`);
+        showMessage(`Added ${code}`, 'success');
       } else {
-        setMsg('Failed to update');
+        showMessage('Failed to update', 'error');
       }
     } catch {
-      setMsg('Network error');
+      showMessage('Network error', 'error');
     }
   };
 
@@ -63,73 +83,118 @@ export default function AdminAllowedCountries() {
       if (res.ok) {
         const data = await res.json();
         setCountries(data.countries);
-        setMsg(`Removed ${code}`);
+        showMessage(`Removed ${code}`, 'success');
       }
     } catch {
-      setMsg('Network error');
+      showMessage('Network error', 'error');
     }
   };
 
   if (loading) {
-    return <div style={{ color: '#64748b', textAlign: 'center', padding: 20 }}>Loading...</div>;
+    return (
+      <div className="flex items-center justify-center py-12">
+        <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+      </div>
+    );
   }
 
   return (
-    <div>
-      <h2 style={{ margin: '0 0 8px', fontSize: 16, color: '#94a3b8' }}>Allowed Countries</h2>
-      <p style={{ fontSize: 12, color: '#64748b', marginBottom: 16 }}>
-        Only markets in allowed countries can be created. Uses reverse geocoding to determine country from coordinates.
-        Currently, geocoding returns &quot;XX&quot; (unknown) — integrate Nominatim or BigDataCloud for real resolution.
-      </p>
+    <div className="space-y-4">
+      <div>
+        <h2 className="text-base font-medium text-foreground mb-1">Allowed Countries</h2>
+        <p className="text-xs text-muted-foreground">
+          Only markets in allowed countries can be created. Uses reverse geocoding to determine country from coordinates.
+        </p>
+      </div>
 
+      {/* Message */}
       {msg && (
-        <div style={{ padding: 10, background: '#16213e', borderRadius: 8, marginBottom: 12, fontSize: 12 }}>
+        <div className={`px-4 py-2.5 rounded-lg text-xs font-medium ${
+          msgType === 'success' ? 'bg-green-500/10 text-green-400 border border-green-500/20' :
+          msgType === 'error' ? 'bg-red-500/10 text-red-400 border border-red-500/20' :
+          'bg-blue-500/10 text-blue-400 border border-blue-500/20'
+        }`}>
           {msg}
         </div>
       )}
 
-      <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
-        <input
-          type="text" placeholder="Country code (e.g. US)" value={newCode}
-          onChange={(e) => setNewCode(e.target.value.toUpperCase())}
-          onKeyDown={(e) => e.key === 'Enter' && addCountry()}
-          maxLength={2}
-          style={{ background: '#0f172a', color: '#e2e8f0', border: '1px solid #334155', borderRadius: 6, padding: '8px 12px', fontSize: 13, width: 100, textTransform: 'uppercase' }}
-        />
-        <button onClick={addCountry} style={{
-          background: '#6366f1', border: 'none', color: '#fff', borderRadius: 6, padding: '8px 16px', cursor: 'pointer', fontSize: 13, fontWeight: 500,
-        }}>
+      {/* Add country form */}
+      <div className="flex items-center gap-2">
+        <div className="relative">
+          <Globe className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+          <Input
+            placeholder="Country code (e.g. US)"
+            value={newCode}
+            onChange={(e) => setNewCode(e.target.value.toUpperCase())}
+            onKeyDown={(e) => e.key === 'Enter' && addCountry()}
+            maxLength={2}
+            className="pl-8 w-32 text-sm uppercase"
+          />
+        </div>
+        <Button size="sm" onClick={addCountry} className="h-9 gap-1.5">
+          <Plus className="w-3.5 h-3.5" />
           Add
-        </button>
+        </Button>
       </div>
 
+      {/* Countries list */}
       {countries.length === 0 ? (
-        <div style={{ color: '#64748b', fontSize: 13 }}>No countries added. All locations will be rejected.</div>
+        <Card className="glass rounded-xl p-8 text-center">
+          <Globe className="w-8 h-8 mx-auto text-muted-foreground/50 mb-2" />
+          <p className="text-sm text-muted-foreground">No countries added yet</p>
+          <p className="text-xs text-muted-foreground/60 mt-1">All locations will be rejected until you add at least one country.</p>
+        </Card>
       ) : (
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+        <div className="flex flex-wrap gap-2">
           {countries.map((code) => (
-            <div key={code} style={{
-              background: '#16213e', borderRadius: 8, padding: '6px 12px', display: 'flex', alignItems: 'center', gap: 8,
-            }}>
-              <span style={{ fontSize: 14, fontWeight: 500 }}>{code}</span>
-              <button onClick={() => removeCountry(code)} style={{
-                background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', fontSize: 16, padding: 0, lineHeight: 1,
-              }}>
-                ×
-              </button>
-            </div>
+            <Badge
+              key={code}
+              variant="secondary"
+              className="px-3 py-1.5 text-sm gap-2 group hover:bg-destructive/10 hover:text-destructive transition-colors cursor-pointer"
+              onClick={() => removeCountry(code)}
+            >
+              {code}
+              <X className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" />
+            </Badge>
           ))}
         </div>
       )}
 
-      <details style={{ marginTop: 24 }}>
-        <summary style={{ color: '#64748b', fontSize: 12, cursor: 'pointer' }}>Common country codes</summary>
-        <div style={{ marginTop: 8, fontSize: 11, color: '#475569', display: 'flex', flexWrap: 'wrap', gap: 4 }}>
-          {['US', 'GB', 'DE', 'FR', 'IT', 'ES', 'CA', 'AU', 'JP', 'CN', 'IN', 'BR', 'RU', 'KR', 'NL', 'CH', 'SE', 'NO', 'FI', 'DK', 'PL', 'UA', 'IL', 'AE', 'SG', 'HK', 'TW', 'TH', 'VN', 'MY', 'ID', 'PH', 'NZ', 'ZA', 'NG', 'KE', 'EG', 'AR', 'MX', 'CO', 'CL', 'PE'].map((c) => (
-            <span key={c} onClick={() => { setNewCode(c); }} style={{ cursor: 'pointer', padding: '2px 6px', borderRadius: 4, background: countries.includes(c) ? '#6366f1' : '#1e293b', color: countries.includes(c) ? '#fff' : '#94a3b8' }}>
-              {c}
-            </span>
-          ))}
+      {/* Country count */}
+      {countries.length > 0 && (
+        <p className="text-xs text-muted-foreground">
+          {countries.length} {countries.length === 1 ? 'country' : 'countries'} allowed • Click a badge to remove
+        </p>
+      )}
+
+      {/* Common codes */}
+      <details className="mt-4" open={showCommon} onToggle={(e) => setShowCommon((e.target as HTMLDetailsElement).open)}>
+        <summary className="flex items-center gap-1.5 text-xs text-muted-foreground cursor-pointer hover:text-foreground transition-colors">
+          {showCommon ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+          Common country codes ({COMMON_COUNTRIES.length})
+        </summary>
+        <div className="mt-2 flex flex-wrap gap-1.5">
+          {COMMON_COUNTRIES.map((c) => {
+            const isAdded = countries.includes(c);
+            return (
+              <Badge
+                key={c}
+                variant={isAdded ? 'default' : 'outline'}
+                className={`text-[10px] cursor-pointer transition-all ${
+                  isAdded ? '' : 'hover:border-primary/50 hover:text-primary'
+                }`}
+                onClick={() => {
+                  if (isAdded) {
+                    removeCountry(c);
+                  } else {
+                    setNewCode(c);
+                  }
+                }}
+              >
+                {c}
+              </Badge>
+            );
+          })}
         </div>
       </details>
     </div>

@@ -1,12 +1,32 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getAllMarkets, toGeoJSON, createMarket, createEvent, isDbAvailable, getCountryCode, isCountryAllowed } from '@/lib/db';
+import { getAllMarkets, toGeoJSON, createMarket, createEvent, isDbAvailable, getCountryCode, isCountryAllowed, getFilteredMarkets } from '@/lib/db';
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
     const available = await isDbAvailable();
     if (!available) {
       return NextResponse.json({ type: 'FeatureCollection', features: [] });
     }
+
+    const { searchParams } = new URL(request.url);
+    const page = parseInt(searchParams.get('page') || '1', 10);
+    const limit = parseInt(searchParams.get('limit') || '50', 10);
+    const category = searchParams.get('category') || '';
+    const search = searchParams.get('search') || '';
+
+    // If pagination or filters are requested, use the filtered query
+    if (page !== 1 || limit !== 50 || category || search) {
+      const { markets, total } = await getFilteredMarkets({ page, limit, category, search });
+      const geoJson = toGeoJSON(markets);
+      return NextResponse.json({
+        ...geoJson,
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      });
+    }
+
     const markets = await getAllMarkets();
     const geoJson = toGeoJSON(markets);
     return NextResponse.json(geoJson);

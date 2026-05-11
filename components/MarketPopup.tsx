@@ -158,9 +158,27 @@ function MarketPopupContent({
 export default function MarketPopup({ market, map, lngLat, onClose }: MarketPopupProps) {
   const popupRef = useRef<maplibregl.Popup | null>(null);
   const rootRef = useRef<Root | null>(null);
+  const mountedRef = useRef(false);
+  const onCloseRef = useRef(onClose);
+  const contractRef = useRef(market.contract_address);
+  // Keep refs up to date without triggering re-render
+  onCloseRef.current = onClose;
+  contractRef.current = market.contract_address;
 
   useEffect(() => {
     if (!map) return;
+
+    let cancelled = false;
+    const safeRender = (
+      el: React.ReactElement
+    ) => {
+      if (cancelled || !rootRef.current) return;
+      try {
+        rootRef.current.render(el);
+      } catch {
+        // Root was unmounted between check and render — ignore
+      }
+    };
 
     // Create a container div for React
     const container = document.createElement('div');
@@ -179,57 +197,81 @@ export default function MarketPopup({ market, map, lngLat, onClose }: MarketPopu
       .addTo(map);
 
     popupRef.current = popup;
-
-    // Render React into the container
     const root = createRoot(container);
     rootRef.current = root;
 
-    // Fetch current prices if available
-    const fetchPrices = async () => {
-      try {
-        const res = await fetch(`/api/price-history/${market.contract_address}`);
-        if (res.ok) {
-          const data = await res.json();
-          const prices = data.prices || data;
-          const latest = Array.isArray(prices) ? prices[prices.length - 1] : prices;
-          if (latest) {
-            market.price_yes = latest.price_yes;
-            market.price_no = latest.price_no;
-          }
-        }
-      } catch {
-        // silent
-      }
-      root.render(
+    // Popup close handler (MapLibre close button or outside click)
+    popup.on('close', () => {
+      cancelled = true;
+      onCloseRef.current();
+    });
+
+    // Helper to render popup content (safe against unmounted root)
+    const renderContent = (
+      overrides: Partial<{
+        price_yes: number;
+        price_no: number;
+        onBuy: (side: 'YES' | 'NO') => void;
+      }> = {}
+    ) => {
+      if (cancelled) return;
+      safeRender(
         <MarketPopupContent
-          market={market}
-          onClose={onClose}
-          onBuy={(side) => {
-            // For now, navigate to the market page with a buy param
-            window.location.href = `/market/${market.contract_address}?buy=${side}`;
-          }}
+          market={{ ...market, ...overrides }}
+          onClose={onCloseRef.current}
+          onBuy={overrides.onBuy ?? (() => {
+            window.location.href = `/market/${contractRef.current}`;
+          })}
         />
       );
     };
 
     // Initial render
-    root.render(
-      <MarketPopupContent
-        market={market}
-        onClose={onClose}
-        onBuy={() => {
-          window.location.href = `/market/${market.contract_address}`;
-        }}
-      />
-    );
+    renderContent();
+
+    // Fetch current prices if available
+    const fetchPrices = async () => {
+      try {
+        const res = await fetch(`/api/price-history/${contractRef.current}`);
+        if (res.ok) {
+          const data = await res.json();
+          const prices = data.prices || data;
+          const latest = Array.isArray(prices) ? prices[prices.length - 1] : prices;
+          if (latest && !cancelled) {
+            renderContent({
+              price_yes: latest.price_yes,
+              price_no: latest.price_no,
+              onBuy: (side) => {
+                window.location.href = `/market/${contractRef.current}?buy=${side}`;
+              },
+            });
+            return;
+          }
+        }
+      } catch {
+        // silent
+      }
+      if (!cancelled) {
+        renderContent({
+          onBuy: (side) => {
+            window.location.href = `/market/${contractRef.current}?buy=${side}`;
+          },
+        });
+      }
+    };
 
     // Fetch prices in background
     fetchPrices();
 
     // Cleanup
     return () => {
+      cancelled = true;
       if (rootRef.current) {
-        rootRef.current.unmount();
+        try {
+          rootRef.current.unmount();
+        } catch {
+          // silent
+        }
         rootRef.current = null;
       }
       if (popupRef.current) {
@@ -237,7 +279,7 @@ export default function MarketPopup({ market, map, lngLat, onClose }: MarketPopu
         popupRef.current = null;
       }
     };
-  }, [map, lngLat.lng, lngLat.lat, market.contract_address]);
+  }, [map, lngLat.lng, lngLat.lat, market]); // NOTE: onClose intentionally omitted — stored in ref to avoid re-run
 
   // This component doesn't render anything directly
   return null;

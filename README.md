@@ -1,10 +1,37 @@
 # GeoRevolt
 
-[![Version](https://img.shields.io/badge/version-1.1.0-green.svg)](https://github.com/mrZhigach/GeoRevolt/releases/tag/v1.1.0)
+[![Version](https://img.shields.io/badge/version-1.3.0-green.svg)](https://github.com/mrZhigach/GeoRevolt/releases/tag/v1.3.0)
 [![License: AGPL v3](https://img.shields.io/badge/License-AGPL%20v3-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
 [![CI](https://github.com/mrZhigach/GeoRevolt/actions/workflows/test.yml/badge.svg)](https://github.com/mrZhigach/GeoRevolt/actions/workflows/test.yml)
 
 Децентрализованные рынки предсказаний на карте. AMM (Uniswap V2) + MapLibre GL JS + Next.js.
+
+## ✨ Новое в v1.3.0 (Sprint 8)
+
+### 🌐 Глобальная навигация
+- **Header** с логотипом, поиском, переключателем темы (🌓 тёмная/светлая), выбором языка (заглушка), профилем кошелька.
+- **Гамбургер-меню** на мобильных — Sheet со ссылками (Дашборд/Карта/Список рынков/Админка).
+
+### 🔄 Переключение карта/список
+- Кнопки **Map / List** в URL (`?view=map` или `?view=list`).
+- Режим **List**: грид карточек с категорией, названием, локацией, ликвидностью, ценами YES/NO.
+- Фильтр по категориям, поиск, пагинация "Load More".
+
+### 💬 Система комментариев
+- Обсуждения на странице каждого рынка (вкладка **Discussions**).
+- Древовидные комментарии с ответами, аватары (первые буквы адреса), кнопки Reply/Delete.
+- Форма нового комментария (требуется подключённый кошелёк).
+
+### 👑 Улучшенная админ-панель
+- **Dashboard**: 4 метрические карточки, PieChart (ликвидность по категориям), BarChart (топ-рынки), LineChart (ежедневная активность).
+- **Batch Upload**: прогресс-бар, улучшенный отчёт с визуализацией.
+- **Allowed Countries**: стильные badges, кликабельные коды стран, сообщения об успехе/ошибке.
+
+### 📱 Мобильная адаптация
+- Адаптивный дизайн 320px–1280px.
+- Карта на всю ширину экрана.
+- Одна колонка в списке рынков.
+- 15 Playwright E2E-тестов для всех новых функций.
 
 ## Для пользователя
 
@@ -191,7 +218,19 @@ docker compose -f docker-compose.prod.yml up -d
 - **App** — Next.js standalone build, healthcheck, restart unless-stopped
 - **Без Anvil** — подключение к реальной сети (Polygon Amoy / mainnet)
 
-### Переменные окружения
+#### Sprint 8 Components
+
+| Компонент | Описание |
+|-----------|----------|
+| `AppHeader` | Глобальная навигация: гамбургер, поиск, тема, язык, профиль |
+| `ViewToggle` | Переключение между картой и списком |
+| `MarketsList` | Грид карточек рынков с фильтрацией и "Load More" |
+| `CommentsSection` | Древовидные комментарии с формой и аватарами |
+| `AdminDashboard` | 4 метрики + Recharts графики (Pie, Bar, Line) |
+| `AdminBatchUpload` | Drag & drop CSV/GeoJSON с прогресс-баром |
+| `AdminAllowedCountries` | Управление списком стран с badges |
+
+## Переменные окружения
 
 | Переменная | Описание | Обязательная |
 |------------|----------|--------------|
