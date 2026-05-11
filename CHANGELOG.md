@@ -2,6 +2,12 @@
 
 Все значимые изменения в проекте фиксируются здесь в хронологическом порядке (от новых к старым).
 
+## [2026-05-11] — Fix: MapControls overlap with AppHeader + Discussions in MarketSidebar
+
+### Fixed
+- **MapControls (stats) перекрыт AppHeader** — `fixed top-4` не учитывал sticky-хедер высотой 56px (`h-14`, z-50). MapControls скрывался за хедером. Исправлено: `top-4` → `top-16` (64px = 56px header + 8px gap).
+- **MarketSidebar не содержал обсуждений** — при клике на маркер открывался сайдбар с графиком и трейдингом, но без дискуссий. Добавлен блок "Discussions" через `CommentsSection` внизу сайдбара с разделителем.
+
 ## [2026-05-11] — Fix: EventFeed overlap, allowed-countries validation, E2E test fixes
 
 ### Fixed

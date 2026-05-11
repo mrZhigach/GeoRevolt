@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useAccount, useReadContract, useWriteContract, useWatchContractEvent } from 'wagmi';
 import { parseUnits, formatUnits } from 'viem';
 import { MarketABI, MOCK_USDC_ADDRESS } from '@/lib/web3';
+import CommentsSection from './CommentsSection';
 import dynamic from 'next/dynamic';
 
 const PriceChart = dynamic(
@@ -239,6 +240,12 @@ export default function MarketSidebar({ market, onClose }: Props) {
       {isResolved && (
         <RedeemSection marketAddr={marketAddr} outcome={Boolean(outcome)} isYesHolder={bYes > 0} isNoHolder={bNo > 0} />
       )}
+
+      {/* Discussions */}
+      <div style={{ marginTop: 24, borderTop: '1px solid #1e293b', paddingTop: 16 }}>
+        <h3 style={{ margin: '0 0 12px', fontSize: 14, color: '#e2e8f0', fontWeight: 600 }}>Discussions</h3>
+        <CommentsSection marketAddress={market.contract_address} />
+      </div>
     </div>
   );
 }
