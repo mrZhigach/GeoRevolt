@@ -497,38 +497,47 @@ export interface AdminStats {
 export async function getAdminStats(): Promise<AdminStats> {
   if (usePostgres()) {
     const pool = await getPgPool();
-    const totalMarkets = (await pool.query('SELECT COUNT(*) as c FROM markets')).rows[0].c;
-    const totalLiq = (await pool.query('SELECT COALESCE(SUM(liquidity),0) as s FROM markets')).rows[0].s;
-    const active = (await pool.query('SELECT COUNT(*) as c FROM markets WHERE resolved=false AND end_time > EXTRACT(EPOCH FROM NOW())')).rows[0].c;
-    const resolved = (await pool.query('SELECT COUNT(*) as c FROM markets WHERE resolved=true')).rows[0].c;
+    // Single aggregated query for counts + sums + top markets + category breakdown
+    const aggQuery = `
+      SELECT
+        (SELECT COUNT(*) FROM markets)::int AS total_markets,
+        (SELECT COALESCE(SUM(liquidity), 0) FROM markets) AS total_liquidity,
+        (SELECT COUNT(*) FROM markets WHERE resolved = false AND end_time > EXTRACT(EPOCH FROM NOW()))::int AS active_markets,
+        (SELECT COUNT(*) FROM markets WHERE resolved = true)::int AS resolved_markets
+    `;
+    const aggResult = (await pool.query(aggQuery)).rows[0];
     const topRows = (await pool.query('SELECT name, liquidity FROM markets ORDER BY liquidity DESC LIMIT 5')).rows;
-    const catRows = (await pool.query('SELECT category, SUM(liquidity) as s FROM markets GROUP BY category ORDER BY s DESC')).rows;
+    const catRows = (await pool.query('SELECT category, SUM(liquidity)::float AS s FROM markets GROUP BY category ORDER BY s DESC')).rows;
     const liquidityByCategory: Record<string, number> = {};
     for (const r of catRows) liquidityByCategory[r.category] = Number(r.s);
     return {
-      totalMarkets: Number(totalMarkets),
-      totalLiquidityUSDC: Number(totalLiq),
-      activeMarkets: Number(active),
-      resolvedMarkets: Number(resolved),
+      totalMarkets: Number(aggResult.total_markets),
+      totalLiquidityUSDC: Number(aggResult.total_liquidity),
+      activeMarkets: Number(aggResult.active_markets),
+      resolvedMarkets: Number(aggResult.resolved_markets),
       topMarketsByLiquidity: topRows.map((r: any) => ({ name: r.name, liquidity: Number(r.liquidity) })),
       liquidityByCategory,
     };
   }
   const db = await getSqliteDb();
-  const totalMarkets = (db.prepare('SELECT COUNT(*) as c FROM markets').get() as any).c;
-  const totalLiq = (db.prepare('SELECT COALESCE(SUM(liquidity),0) as s FROM markets').get() as any).s;
   const now = Date.now() / 1000;
-  const active = (db.prepare('SELECT COUNT(*) as c FROM markets WHERE resolved=0 AND end_time > ?').get(now) as any).c;
-  const resolved = (db.prepare('SELECT COUNT(*) as c FROM markets WHERE resolved=1').get() as any).c;
+  // Single query with sub-selects for SQLite (avoids 4 separate round-trips)
+  const aggRow = db.prepare(`
+    SELECT
+      (SELECT COUNT(*) FROM markets) AS total_markets,
+      (SELECT COALESCE(SUM(liquidity), 0) FROM markets) AS total_liquidity,
+      (SELECT COUNT(*) FROM markets WHERE resolved = 0 AND end_time > ?) AS active_markets,
+      (SELECT COUNT(*) FROM markets WHERE resolved = 1) AS resolved_markets
+  `).get(now) as any;
   const topRows = db.prepare('SELECT name, liquidity FROM markets ORDER BY liquidity DESC LIMIT 5').all() as any[];
   const catRows = db.prepare('SELECT category, SUM(liquidity) as s FROM markets GROUP BY category ORDER BY s DESC').all() as any[];
   const liquidityByCategory: Record<string, number> = {};
   for (const r of catRows) liquidityByCategory[r.category] = Number(r.s);
   return {
-    totalMarkets: totalMarkets as number,
-    totalLiquidityUSDC: totalLiq as number,
-    activeMarkets: active as number,
-    resolvedMarkets: resolved as number,
+    totalMarkets: aggRow.total_markets as number,
+    totalLiquidityUSDC: aggRow.total_liquidity as number,
+    activeMarkets: aggRow.active_markets as number,
+    resolvedMarkets: aggRow.resolved_markets as number,
     topMarketsByLiquidity: topRows.map((r: any) => ({ name: r.name, liquidity: Number(r.liquidity) })),
     liquidityByCategory,
   };

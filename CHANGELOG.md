@@ -2,6 +2,85 @@
 
 Все значимые изменения в проекте фиксируются здесь в хронологическом порядке (от новых к старым).
 
+## [2026-05-11] – Sprint 7 — Премиальный дизайн PPLX (Task 7.1: Дизайн-система)
+
+### Added
+- **shadcn/ui установка** — инициализация через CLI (v4, base-nova стиль), создан `components.json`, установлены зависимости.
+- **UI-компоненты** — добавлены в `/components/ui`: `card`, `button`, `input`, `select`, `popover`, `command`, `sheet`, `dialog`, `textarea`, `input-group`.
+- **Google Fonts** — подключены Inter и DM Sans через `next/font/google` в корневом `layout.tsx`.
+- **PPLX-тёмная тема** — кастомизация CSS-переменных в `globals.css`: зелёный акцент (`hsl(142 71% 45%)`), прозрачные карточки через `hsla(0, 0%, 6%, 0.75)`, backdrop-blur.
+- **Glass-утилиты** — CSS-классы `.glass` и `.card-glass` для карточек с эффектом матового стекла.
+
+### Changed
+- **app/globals.css** — полная переработка: добавлены Tailwind v4 директивы (`@import 'tailwindcss'`, `@theme inline`), shadcn v4 интеграция, кастомные цвета и радиусы.
+- **app/layout.tsx** — добавлены `Inter` и `DM_Sans` шрифты, `font-sans antialiased` на body.
+- **components/Map.tsx** — исправлена типовая ошибка `failIfMajorPerformanceCaveat` (несуществующее свойство в новых типах maplibre-gl).
+
+### Technical Debt
+- **Map.tsx**: удалён `failIfMajorPerformanceCaveat: false`, теперь отсутствует явная обработка WebGL performance caveat.
+
+## [2026-05-11] – Sprint 7 (Task 7.2: Плавающая карточка управления MapControls)
+
+### Added
+- **components/MapControls.tsx** — новый компонент плавающей карточки управления (fixed top-4 left-4 z-10, glass-эффект, 340px ширина):
+  - **Геокодер (Nominatim)**: поиск адреса/места с debounce (400ms), выпадающий список подсказок, fly-to при выборе.
+  - **Фильтр по категориям**: select-компонент с 6 категориями (All, Politics, Sports, Economics, Technology, General) с иконками.
+  - **Wallet-виджет**: отображение адреса (сокращённый) при подключении, кнопки Connect/Exit.
+  - **Кнопка "My Bets"**: Sheet (shadcn/ui) справа с информацией о ставках (заглушка для неавторизованных).
+  - **Stats-блок**: мини-карточка с метриками (Markets, Active, TVL), данные из `/api/admin/stats`, автообновление каждые 30с.
+
+### Changed
+- **components/Map.tsx** — заменён inline-виджет кошелька на `<MapControls>`. Добавлены:
+  - `handleFlyTo` — плавное перемещение карты по координатам.
+  - `handleCategoryFilter` — динамическая фильтрация слоёв маркеров на карте (client-side через `map.setFilter`).
+  - Кнопка "+ New Market" переведена на Tailwind/glass-стиль.
+
+## [2026-05-11] – Sprint 7 (Task 7.5: Анимации и глобальный Sticky Header)
+
+### Added
+- **components/AppHeader.tsx** — глобальный Sticky Header для страниц, отличных от карты:
+  - Логотип GeoRevolt с иконкой Globe.
+  - Навигация: Map, Admin (с активным состоянием).
+  - Wallet-виджет (connect/disconnect, сокращённый адрес).
+  - Автоматически скрывается на главной странице (`pathname === '/'`).
+  - Glass-эффект `backdrop-blur-md`, тёмная тема, sticky top-0.
+- **Анимации CSS** — в `globals.css`:
+  - `.georevolt-marker-popup` — entry-анимация `popup-in` (opacity + scale + translateY).
+  - `@utility transition-soft` — `transition: all 0.2s ease`.
+  - `.glass:hover` — плавное изменение border-color.
+  - `@keyframes popup-in` — анимация появления попапа (0.2s, ease-out).
+- **MapControls.tsx** — класс `transition-soft` на главной карточке.
+
+### Changed
+- **app/layout.tsx** — добавлен `<AppHeader />` в корневой layout, удалён глобальный `overflow: hidden` с body для поддержки скролла на страницах /admin и /market/[address].
+- **app/globals.css** — убран `overflow: hidden` из html (перенесён в стили карты).
+
+## [2026-05-11] – Sprint 7 (Task 7.4: Оптимизация блока статистики)
+
+### Changed
+- **lib/db.ts** — оптимизирован `getAdminStats()`: 4 отдельных запроса (COUNT, SUM, COUNT active, COUNT resolved) объединены в один агрегированный с подзапросами как для SQLite, так и для PostgreSQL. Это сокращает число round-trips к БД с 6 до 3.
+- **components/MapControls.tsx** — блок статистики уже интегрирован (из задачи 7.2), получает данные через `fetch('/api/admin/stats')` при монтировании с автообновлением каждые 30 секунд.
+
+## [2026-05-11] – Sprint 7 (Task 7.3: Карточка события MarketPopup)
+
+### Added
+- **components/MarketPopup.tsx** — новый компонент-попап для отображения информации о рынке при клике на маркер:
+  - Рендерится через нативный MapLibre `Popup` с React-контентом (через `createRoot`).
+  - Позиционируется над координатами маркера, offset 10px.
+  - Заголовок: категория (с цветовой точкой), название рынка, статус resolved.
+  - Адрес (если есть) — одной строкой.
+  - Цены YES/NO — две компактные карточки с процентным отображением (`¢{price * 100}%`).
+  - Ссылка "Details →" на `/market/{address}`.
+  - Кнопки быстрой покупки "💰 Buy YES" / "💰 Buy NO" с glass-стилем и hover-эффектами.
+  - Автозагрузка текущих цен через `/api/price-history/[address]`.
+
+### Changed
+- **components/Map.tsx** — клик по маркеру/кругу теперь открывает `MarketPopup` вместо `MarketSidebar`.
+  - Добавлено состояние `clickedLngLat` для передачи координат клика в попап.
+  - Попап рендерится при `selectedMarket && clickedLngLat && map.current`.
+  - Dblclick и close очищают оба состояния.
+  - `handleMarketClosed` теперь сбрасывает `clickedLngLat`.
+
 ## [2026-05-09] – Hotfix: 500 error on market creation + WebGL context loss handling
 
 ### Fixed

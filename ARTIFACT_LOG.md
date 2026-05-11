@@ -141,6 +141,25 @@
 | `components/AdminBatchUpload.tsx` | Drag & Drop загрузка CSV/GeoJSON с отчётом | 2025-05-09 |
 | `components/AdminAllowedCountries.tsx` | Управление разрешёнными странами | 2025-05-09 |
 
+## UI-компоненты (shadcn/ui — Sprint 7)
+| Компонент | Описание | Дата |
+|-----------|----------|------|
+| `components/MapControls.tsx` | Плавающая карточка управления: геокодер, фильтр категорий, wallet, My Bets sheet, stats block | 2026-05-11 |
+| `components/MarketPopup.tsx` | Карточка события над маркером: цены YES/NO, быстрая покупка, Details → | 2026-05-11 |
+| `components/AppHeader.tsx` | Глобальный Sticky Header (навигация, wallet) для страниц /admin, /market/[address] | 2026-05-11 |
+| `components/ui/card.tsx` | shadcn/ui Card (base-ui) | 2026-05-11 |
+| `components/ui/button.tsx` | shadcn/ui Button | 2026-05-11 |
+| `components/ui/input.tsx` | shadcn/ui Input | 2026-05-11 |
+| `components/ui/select.tsx` | shadcn/ui Select (base-ui) | 2026-05-11 |
+| `components/ui/popover.tsx` | shadcn/ui Popover (base-ui) | 2026-05-11 |
+| `components/ui/command.tsx` | shadcn/ui Command (base-ui) | 2026-05-11 |
+| `components/ui/sheet.tsx` | shadcn/ui Sheet (base-ui) | 2026-05-11 |
+| `components/ui/dialog.tsx` | shadcn/ui Dialog (base-ui) | 2026-05-11 |
+| `components/ui/textarea.tsx` | shadcn/ui Textarea | 2026-05-11 |
+| `components/ui/input-group.tsx` | shadcn/ui InputGroup | 2026-05-11 |
+| `lib/utils.ts` | shadcn/ui utility (cn function) | 2026-05-11 |
+| `components.json` | shadcn/ui конфигурация (base-nova style, slate dark) | 2026-05-11 |
+
 ## Web3 / Интеграция
 | Компонент | Описание | Дата |
 |-----------|----------|------|

@@ -3,11 +3,14 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import maplibregl, { GeoJSONSource } from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
+import MapControls from './MapControls';
+import MarketPopup from './MarketPopup';
 import MarketSidebar from './MarketSidebar';
 import CreateMarketModal from './CreateMarketModal';
 import EventFeed from './EventFeed';
 import { useAccount, useConnect, useDisconnect } from 'wagmi';
 import { injected } from 'wagmi/connectors';
+import { Plus } from 'lucide-react';
 
 const WEBGL_RESTORE_MAX_ATTEMPTS = 5;
 const WEBGL_RESTORE_RETRY_MS = 2000;
@@ -28,7 +31,9 @@ export default function Map() {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<maplibregl.Map | null>(null);
   const restoreAttempts = useRef(0);
+  const categoryFilterRef = useRef<string>('all');
   const [selectedMarket, setSelectedMarket] = useState<MarketProperties | null>(null);
+  const [clickedLngLat, setClickedLngLat] = useState<{ lng: number; lat: number } | null>(null);
   const [createCoords, setCreateCoords] = useState<{ lng: number; lat: number } | null>(null);
   const [markets, setMarkets] = useState<MarketProperties[]>([]);
   const [webglReady, setWebglReady] = useState(true);
@@ -36,6 +41,36 @@ export default function Map() {
   const { connect } = useConnect();
   const { disconnect } = useDisconnect();
 
+  // ---- Fly-to handler (from geocoder) ----
+  const handleFlyTo = useCallback((lng: number, lat: number) => {
+    if (map.current) {
+      map.current.flyTo({ center: [lng, lat], zoom: 12, duration: 1500 });
+    }
+  }, []);
+
+  // ---- Category filter handler ----
+  const handleCategoryFilter = useCallback((category: string) => {
+    categoryFilterRef.current = category;
+    if (!map.current) return;
+
+    const layers = ['markets-radius', 'markets-layer'];
+    for (const layerId of layers) {
+      const layer = map.current.getLayer(layerId);
+      if (!layer) continue;
+
+      if (category === 'all') {
+        map.current.setFilter(layerId, ['!', ['has', 'point_count']]);
+      } else {
+        map.current.setFilter(layerId, [
+          'all',
+          ['!', ['has', 'point_count']],
+          ['==', ['get', 'category'], category],
+        ]);
+      }
+    }
+  }, []);
+
+  // ---- Map initialization ----
   useEffect(() => {
     if (map.current || !mapContainer.current) return;
 
@@ -44,8 +79,7 @@ export default function Map() {
       style: '/data/style-demo.json',
       center: [40, 55],
       zoom: 3,
-      failIfMajorPerformanceCaveat: false,
-    });
+    } as maplibregl.MapOptions);
 
     // WebGL context loss/restore handling
     const canvas = m.getCanvas();
@@ -63,7 +97,6 @@ export default function Map() {
     canvas.addEventListener('webglcontextlost', handleContextLost);
     canvas.addEventListener('webglcontextrestored', handleContextRestored);
 
-    // If context was already lost before we attached listeners, try restoring
     if (m.getCanvas().getContext('webgl')?.isContextLost() ?? false) {
       console.warn('[Map] Context already lost on init — will retry');
       setWebglReady(false);
@@ -173,10 +206,11 @@ export default function Map() {
           },
         });
 
-        // Click on circle → open sidebar (same as marker click)
+        // Click on circle → open popup
         m.on('click', 'markets-radius', (e) => {
           const props = e.features?.[0]?.properties as Record<string, any>;
           if (props?.contract_address) {
+            setClickedLngLat({ lng: e.lngLat.lng, lat: e.lngLat.lat });
             setCreateCoords(null);
             setSelectedMarket(props as unknown as MarketProperties);
           }
@@ -185,6 +219,7 @@ export default function Map() {
         m.on('click', 'markets-layer', (e) => {
           const props = e.features?.[0]?.properties as Record<string, any>;
           if (props?.contract_address) {
+            setClickedLngLat({ lng: e.lngLat.lng, lat: e.lngLat.lat });
             setCreateCoords(null);
             setSelectedMarket(props as unknown as MarketProperties);
           }
@@ -211,6 +246,7 @@ export default function Map() {
         m.on('dblclick', (e) => {
           if (e.lngLat) {
             setSelectedMarket(null);
+            setClickedLngLat(null);
             setCreateCoords({ lng: e.lngLat.lng, lat: e.lngLat.lat });
           }
         });
@@ -242,35 +278,43 @@ export default function Map() {
 
   const handleMarketClosed = useCallback(() => {
     setSelectedMarket(null);
+    setClickedLngLat(null);
   }, []);
 
   return (
     <div style={{ position: 'relative', width: '100%', height: '100vh' }}>
-      <div style={{ position: 'absolute', top: 12, left: 12, zIndex: 5, background: '#1a1a2e', padding: '8px 16px', borderRadius: 8, boxShadow: '0 2px 8px rgba(0,0,0,0.3)' }}>
-        {isConnected ? (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <span style={{ color: '#22c55e', fontSize: 12 }}>{address?.slice(0, 6)}...{address?.slice(-4)}</span>
-            <button onClick={() => disconnect()} style={{ background: 'none', border: '1px solid #ef4444', color: '#ef4444', borderRadius: 4, padding: '4px 8px', cursor: 'pointer', fontSize: 11 }}>Disconnect</button>
-          </div>
-        ) : (
-          <button onClick={() => connect({ connector: injected() })} style={{ background: '#6366f1', border: 'none', color: '#fff', borderRadius: 6, padding: '8px 16px', cursor: 'pointer', fontSize: 13, fontWeight: 500 }}>
-            Connect Wallet
-          </button>
-        )}
-      </div>
+      {/* ---- New-style MapControls (top-left) ---- */}
+      <MapControls
+        walletAddress={address}
+        isConnected={isConnected}
+        onConnect={() => connect({ connector: injected() })}
+        onDisconnect={() => disconnect()}
+        onFlyTo={handleFlyTo}
+        onCategoryFilter={handleCategoryFilter}
+      />
+
+      {/* ---- New Market button (bottom-left) ---- */}
       <div style={{ position: 'absolute', bottom: 12, left: 12, zIndex: 5, display: 'flex', gap: 8 }}>
-        <button onClick={() => { setSelectedMarket(null); setCreateCoords({ lng: 37.62, lat: 55.75 }); }} style={{
-          background: '#6366f1', border: 'none', color: '#fff', borderRadius: 6, padding: '8px 16px',
-          cursor: 'pointer', fontSize: 13, fontWeight: 500,
-        }}>
-          + New Market
+        <button
+          onClick={() => {
+            setSelectedMarket(null);
+            setCreateCoords({ lng: 37.62, lat: 55.75 });
+          }}
+          className="glass rounded-xl shadow-lg px-4 py-2 text-sm font-medium text-foreground hover:bg-accent/20 transition-colors flex items-center gap-1.5"
+        >
+          <Plus className="w-4 h-4" />
+          New Market
         </button>
       </div>
-      <div style={{ position: 'absolute', bottom: 12, right: 12, zIndex: 5, background: '#1a1a2e', padding: '6px 12px', borderRadius: 6, color: '#64748b', fontSize: 11 }}>
+
+      {/* ---- Hint (bottom-right) ---- */}
+      <div style={{ position: 'absolute', bottom: 12, right: 12, zIndex: 5 }} className="glass rounded-lg px-3 py-1.5 text-[11px] text-muted-foreground">
         Double-click map to create market
       </div>
+
       <div ref={mapContainer} style={{ width: '100%', height: '100%' }} />
 
+      {/* ---- WebGL lost overlay ---- */}
       {!webglReady && (
         <div style={{
           position: 'absolute', top: 0, left: 0, width: '100%', height: '100%',
@@ -283,17 +327,23 @@ export default function Map() {
           <div style={{ fontSize: 12, color: '#94a3b8' }}>
             Attempting to restore... Try refreshing the page if this persists.
           </div>
-          <button onClick={() => window.location.reload()} style={{
-            marginTop: 8, padding: '8px 20px', borderRadius: 6, border: 'none',
-            background: '#6366f1', color: '#fff', cursor: 'pointer', fontSize: 13,
-          }}>
+          <button onClick={() => window.location.reload()} className="px-5 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors">
             Reload Page
           </button>
         </div>
       )}
 
-      {selectedMarket && (
-        <MarketSidebar market={selectedMarket} onClose={() => setSelectedMarket(null)} />
+      {/* Marker popup (overrides sidebar for map clicks) */}
+      {selectedMarket && clickedLngLat && map.current && (
+        <MarketPopup
+          market={selectedMarket}
+          map={map.current}
+          lngLat={clickedLngLat}
+          onClose={() => {
+            setSelectedMarket(null);
+            setClickedLngLat(null);
+          }}
+        />
       )}
       {createCoords && (
         <CreateMarketModal coordinates={createCoords} onClose={() => setCreateCoords(null)} onCreated={handleMarketCreated} />

@@ -1,7 +1,31 @@
 # Сводка тестирования проекта GeoRevolt
 
-**Актуально на:** 2026-05-09 23:59 UTC  
-**Спринт:** 6 — Hotfix
+**Актуально на:** 2026-05-11 23:59 UTC  
+**Спринт:** 7 — Премиальный дизайн PPLX
+
+## Sprint 7 — UI Integration Tests
+
+### Build & Compilation
+| Проверка | Статус |
+|----------|--------|
+| `next build` (production) | ✅ PASS |
+| TypeScript strict mode | ✅ PASS |
+| shadcn/ui components (13 шт.) | ✅ Установлены через CLI |
+| Google Fonts (Inter, DM Sans) | ✅ Подключены |
+
+### API Tests (Jest)
+- **12/12 PASS** (те же, что и в Sprint 6 — без регрессий)
+- Команда: `npm test`
+
+### New Components (manual verification needed)
+| Компонент | Статус |
+|-----------|--------|
+| `MapControls.tsx` — геокодер, фильтр, wallet, stats | ✅ Собран (build pass) |
+| `MarketPopup.tsx` — MapLibre Popup + React | ✅ Собран (build pass) |
+| `AppHeader.tsx` — Sticky Header | ✅ Собран (build pass) |
+| Glass-эффекты + анимации | ✅ CSS классы созданы |
+
+---
 
 ## 1. Смарт-контракты (Foundry)
 
@@ -338,4 +362,5 @@ CI: GitHub Actions workflow (`e2e-fork`), запускается вручную 
 
 ---
 
-**Резюме:** 49 контрактных + 12 API тестов — 61 PASS, 0 FAIL. Газ функций buy/sell снижен на 5–7%. E2E-скрипты: Anvil (local) + Forked Amoy. Админ-панель Sprint 5.3: 4 API эндпоинта, 4 UI компонента, дашборд с recharts, пакетная загрузка, управление странами. Hotfix: frontend working — webpack cache corruption устранён.
+**Резюме:** 49 контрактных + 12 API тестов — 61 PASS, 0 FAIL. Газ функций buy/sell снижен на 5–7%. E2E-скрипты: Anvil (local) + Forked Amoy.  
+**Спринт 7 (PPLX дизайн):** shadcn/ui v4 установлен, 13 UI-компонентов, 3 новых компонента (MapControls, MarketPopup, AppHeader), PPLX-тёмная тема, glass-эффекты, Google Fonts. Build production — PASS.
