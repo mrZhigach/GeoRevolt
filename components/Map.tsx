@@ -25,6 +25,10 @@ interface MarketProperties {
   liquidity: number;
   radius: number;
   address: string | null;
+  lng?: number;
+  lat?: number;
+  price_yes?: number;
+  price_no?: number;
 }
 
 export default function Map() {
@@ -82,17 +86,42 @@ export default function Map() {
     } as maplibregl.MapOptions);
 
     // WebGL context loss/restore handling
+    // NOTE: we do NOT call e.preventDefault() — let the browser auto-restore
+    // the context. MapLibre GL JS 4.x handles internal re-initialization
+    // of painting resources after restore.
     const canvas = m.getCanvas();
     const handleContextLost = (e: Event) => {
-      e.preventDefault();
-      console.warn('[Map] WebGL context lost — attempting to restore...');
+      restoreAttempts.current += 1;
+      console.warn(
+        `[Map] WebGL context lost (attempt ${restoreAttempts.current}/${WEBGL_RESTORE_MAX_ATTEMPTS})`
+      );
       setWebglReady(false);
+
+      if (restoreAttempts.current >= WEBGL_RESTORE_MAX_ATTEMPTS) {
+        console.error('[Map] WebGL context repeatedly lost — showing reload overlay');
+      }
     };
     const handleContextRestored = () => {
-      console.log('[Map] WebGL context restored');
+      console.log(
+        '[Map] WebGL context restored after', restoreAttempts.current, 'loss(es)'
+      );
       setWebglReady(true);
       restoreAttempts.current = 0;
+
+      // Resize triggers MapLibre's internal re-render
       m.resize();
+
+      // Re-fetch market data and re-populate the GeoJSON source
+      // because all WebGL resources (buffers, textures) were lost
+      fetchMarkets().then((features) => {
+        const source = m.getSource('markets') as GeoJSONSource | undefined;
+        if (source) {
+          source.setData({
+            type: 'FeatureCollection',
+            features,
+          });
+        }
+      });
     };
     canvas.addEventListener('webglcontextlost', handleContextLost);
     canvas.addEventListener('webglcontextrestored', handleContextRestored);
@@ -206,22 +235,34 @@ export default function Map() {
           },
         });
 
+        // Helper: enrich feature properties with lat/lng from geometry
+        const enrichMarket = (feature: GeoJSON.Feature | undefined) => {
+          if (!feature) return null;
+          const props = feature.properties as Record<string, any> || {};
+          const coords = (feature.geometry as GeoJSON.Point)?.coordinates;
+          return {
+            ...props,
+            lng: coords?.[0] ?? 0,
+            lat: coords?.[1] ?? 0,
+          } as MarketProperties;
+        };
+
         // Click on circle → open popup
         m.on('click', 'markets-radius', (e) => {
-          const props = e.features?.[0]?.properties as Record<string, any>;
-          if (props?.contract_address) {
+          const enriched = enrichMarket(e.features?.[0]);
+          if (enriched?.contract_address) {
             setClickedLngLat({ lng: e.lngLat.lng, lat: e.lngLat.lat });
             setCreateCoords(null);
-            setSelectedMarket(props as unknown as MarketProperties);
+            setSelectedMarket(enriched);
           }
         });
 
         m.on('click', 'markets-layer', (e) => {
-          const props = e.features?.[0]?.properties as Record<string, any>;
-          if (props?.contract_address) {
+          const enriched = enrichMarket(e.features?.[0]);
+          if (enriched?.contract_address) {
             setClickedLngLat({ lng: e.lngLat.lng, lat: e.lngLat.lat });
             setCreateCoords(null);
-            setSelectedMarket(props as unknown as MarketProperties);
+            setSelectedMarket(enriched);
           }
         });
 
@@ -258,7 +299,11 @@ export default function Map() {
           m.getCanvas().style.cursor = '';
         });
 
-        setMarkets(features.map((f: any) => f.properties));
+        setMarkets(features.map((f: any) => ({
+          ...f.properties,
+          lng: f.geometry?.coordinates?.[0] ?? 0,
+          lat: f.geometry?.coordinates?.[1] ?? 0,
+        })));
       });
     });
 
@@ -294,7 +339,7 @@ export default function Map() {
       />
 
       {/* ---- New Market button (bottom-left) ---- */}
-      <div style={{ position: 'absolute', bottom: 12, left: 12, zIndex: 5, display: 'flex', gap: 8 }}>
+      <div style={{ position: 'absolute', bottom: 12, left: 12, zIndex: 45, display: 'flex', gap: 8 }}>
         <button
           onClick={() => {
             setSelectedMarket(null);
@@ -308,7 +353,7 @@ export default function Map() {
       </div>
 
       {/* ---- Hint (bottom-right) ---- */}
-      <div style={{ position: 'absolute', bottom: 12, right: 12, zIndex: 5 }} className="glass rounded-lg px-3 py-1.5 text-[11px] text-muted-foreground">
+      <div style={{ position: 'absolute', bottom: 12, right: 12, zIndex: 45 }} className="glass rounded-lg px-3 py-1.5 text-[11px] text-muted-foreground">
         Double-click map to create market
       </div>
 
@@ -325,8 +370,17 @@ export default function Map() {
             ⚠ Map unavailable — WebGL context lost
           </div>
           <div style={{ fontSize: 12, color: '#94a3b8' }}>
-            Attempting to restore... Try refreshing the page if this persists.
+            Restore attempt {restoreAttempts.current}/{WEBGL_RESTORE_MAX_ATTEMPTS}
+            {restoreAttempts.current >= WEBGL_RESTORE_MAX_ATTEMPTS
+              ? ' — please reload the page.'
+              : ' — auto-retrying...'}
           </div>
+          {restoreAttempts.current >= WEBGL_RESTORE_MAX_ATTEMPTS && (
+            <div style={{ fontSize: 11, color: '#f87171', maxWidth: 320, textAlign: 'center' }}>
+              This may be caused by a browser extension (e.g. MetaMask) conflicting with WebGL.
+              Try disabling extensions or using a different browser.
+            </div>
+          )}
           <button onClick={() => window.location.reload()} className="px-5 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors">
             Reload Page
           </button>

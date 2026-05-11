@@ -32,7 +32,7 @@ export default function AdminPage() {
   const isAdmin = !ADMIN_WALLET || (address && address.toLowerCase() === ADMIN_WALLET.toLowerCase());
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background pt-14">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6">
         {/* Header */}
         <div className="flex items-center justify-between mb-6">

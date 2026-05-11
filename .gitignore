@@ -33,3 +33,6 @@ __tests__/data/*.db-shm
 
 # Forge broadcast logs
 broadcast/
+
+# TypeScript build info
+*.tsbuildinfo

@@ -37,6 +37,33 @@
 
 ---
 
+## Хотфикс (2026-05-11) — Консольные ошибки браузера
+
+| ID | Задача | SP | Статус | Агент | Дедлайн | Комментарий |
+|----|--------|----|--------|-------|---------|--------------|
+| HF.1 | **Button forwardRef** — компонент Button обёрнут в `React.forwardRef` для совместимости с DialogClose/SheetClose из `@base-ui/react` | 1 | [x] | @frontend-dev | 2026-05-11 | ✅ button.tsx: forwardRef + displayName |
+| HF.2 | **Async root.unmount в MarketPopup** — `root.unmount()` перенесён в `queueMicrotask()` для устранения предупреждения React | 1 | [x] | @frontend-dev | 2026-05-11 | ✅ MarketPopup.tsx: queueMicrotask |
+| HF.3 | **validate-docs.sh + CHANGELOG** | 1 | [x] | @feature-lead | 2026-05-11 | ✅ |
+
+## Хотфикс Sprint 8 (2026-05-11) — Ошибки развёртывания
+
+| ID | Задача | SP | Статус | Агент | Дедлайн | Комментарий |
+|----|--------|----|--------|-------|---------|--------------|
+| 8.HF.1 | **CRITICAL: TypeError toFixed lat undefined** — извлечение lat/lng из GeoJSON geometry в MarketsList | 2 | [x] | @frontend-dev | 2026-05-11 | ✅ MarketsList.tsx: geometry.coordinates → lat/lng + safe check |
+| 8.HF.2 | **Sticky Header перекрывает админку** — pt-14 для app/admin/page.tsx и app/page.tsx | 1 | [x] | @frontend-dev | 2026-05-11 | ✅ pt-14 на контейнеры |
+| 8.HF.3 | **z-index плавающих элементов** — MapControls z-40, кнопки карты zIndex 45 | 1 | [x] | @frontend-dev | 2026-05-11 | ✅ MapControls.tsx + Map.tsx |
+| 8.HF.4 | **Попап не получает данные маркера** — enrichMarket() в click-обработчиках Map.tsx | 2 | [x] | @frontend-dev | 2026-05-11 | ✅ Map.tsx: enrichMarket helper + расширен MarketProperties |
+| 8.HF.5 | **npm run build + validate-docs.sh + CHANGELOG** | 1 | [x] | @feature-lead | 2026-05-11 | ✅ |
+
+## Хотфикс (2026-05-11) — MarketPopup data + WebGL context loss
+
+| ID | Задача | SP | Статус | Агент | Дедлайн | Комментарий |
+|----|--------|----|--------|-------|---------|--------------|
+| HF.4 | **WebGL context loss loop** — счётчик restoreAttempts не инкрементился, preventDefault блокировал авто-восстановление. Исправлено: убран preventDefault, добавлен counter, source refresh после restore | 2 | [x] | @feature-lead | 2026-05-11 | ✅ Map.tsx: context loss counter + source.setData после restore |
+| HF.5 | **MarketPopup не показывал описание** — `market.description` присутствовал в данных, но не отображался в попапе. Добавлен блок с line-clamp. Safe fallback для `liquidity` | 1 | [x] | @feature-lead | 2026-05-11 | ✅ MarketPopup.tsx: description + liquidity fallback |
+| HF.6 | **Цены YES/NO отсутствовали в GeoJSON** — `toGeoJSON()` не экспортировал price_yes/price_no. Добавлены с null default | 1 | [x] | @feature-lead | 2026-05-11 | ✅ lib/db.ts: price_yes: null, price_no: null |
+| HF.7 | **npm run build + validate-docs.sh + CHANGELOG** | 1 | [x] | @feature-lead | 2026-05-11 | ✅ |
+
 ## Бэклог
 - PMTiles для РФ (ждём Planetiler на 48 GB RAM)
 - Деплой на Polygon Amoy (#11)

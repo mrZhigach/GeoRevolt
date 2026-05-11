@@ -28,7 +28,7 @@ function HomeContent() {
 
   if (view === 'list') {
     return (
-      <main className="min-h-screen bg-background">
+      <main className="min-h-screen bg-background pt-14">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6">
           <MarketsList />
         </div>

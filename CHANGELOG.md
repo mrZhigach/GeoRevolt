@@ -2,6 +2,44 @@
 
 Все значимые изменения в проекте фиксируются здесь в хронологическом порядке (от новых к старым).
 
+## [2026-05-11] – Hotfix Sprint 8: MarketPopup data, WebGL context loss loop, description display
+
+### Fixed
+- **WebGL context loss loop в Map.tsx** — `webglcontextlost` обработчик вызывал `e.preventDefault()`, что блокировало автоматическое восстановление контекста браузером. Счётчик `restoreAttempts.current` никогда не инкрементировался. Исправлено:
+  - Убран `e.preventDefault()` — браузер и MapLibre GL JS 4.x теперь автоматически восстанавливают контекст.
+  - `restoreAttempts.current` инкрементируется при каждой потере контекста.
+  - После восстановления (`webglcontextrestored`) вызывается `m.resize()` и перезагружаются данные GeoJSON-слоя через `source.setData()`.
+  - В оверлей WebGL добавлено отображение номера попытки и диагностическое сообщение о возможном конфликте с расширениями браузера при превышении `WEBGL_RESTORE_MAX_ATTEMPTS`.
+- **Цены маркеров отсутствовали в GeoJSON** — `toGeoJSON()` в `lib/db.ts` не включал поля `price_yes`/`price_no`. Добавлены с `null` по умолчанию — попап корректно отображает статус цен через `formatPrice()`.
+- **Описание рынка не показывалось в MarketPopup** — компонент `MarketPopupContent` не отображал `market.description`. Добавлен блок с description (line-clamp-3, обрезается при длинном тексте).
+- **Потенциальный crash при undefined liquidity** — `market.liquidity.toLocaleString()` мог выбросить TypeError, если `liquidity` отсутствует. Добавлена проверка `market.liquidity != null` с fallback `'—'`.
+
+### Changed
+- `lib/db.ts` — `toGeoJSON()`: добавлены `price_yes: null, price_no: null` в properties.
+- `components/Map.tsx` — исправлены обработчики `webglcontextlost`/`webglcontextrestored` (no preventDefault, counter increment, source refresh). WebGL overlay показывает номер попытки и диагностику.
+- `components/MarketPopup.tsx` — добавлен блок описания, safe fallback для `liquidity`.
+
+## [2026-05-11] – Hotfix Sprint 8: GeoJSON lat/lng, z-index, header overlap, popup data
+
+### Fixed
+- **Критический баг: `TypeError: can't access property "toFixed", market.lat is undefined` в MarketsList.tsx** — компонент ожидал поля `lat`/`lng` на объекте маркета, но API возвращает GeoJSON с координатами в `feature.geometry.coordinates`. Исправлено: при маппинге `features` координаты извлекаются из `geometry.coordinates` как `[lng, lat]`. Добавлена fallback-проверка `market.lat != null` в `MarketCard`.
+- **Sticky Header перекрывает контент админ-панели** — AppHeader имеет `position: sticky; z-index: 50; h-14`. Добавлен `pt-14` на контейнеры `app/admin/page.tsx` и `app/page.tsx` (list view), чтобы контент не прятался под шапкой.
+- **Неправильный z-index плавающих элементов на карте** — MapControls имел `z-10`, нижние кнопки — `zIndex: 5`. Исправлено: MapControls → `z-40`, кнопки → `zIndex: 45`, чтобы соблюдался порядок Header (50) > элементы управления (40-45) > карта (0).
+- **Попап не получал координаты маркера при клике** — обработчики `click` на `markets-radius`/`markets-layer` передавали только `feature.properties` без lat/lng. Исправлено: добавлена функция `enrichMarket()`, извлекающая `lng`/`lat` из `geometry.coordinates`. Интерфейс `MarketProperties` расширен полями `lng`, `lat`, `price_yes`, `price_no`.
+
+### Changed
+- `components/MarketsList.tsx` — маппинг GeoJSON → MarketCardData теперь включает `lng/lat` из geometry.
+- `components/Map.tsx` — click-обработчики обогащают данные маркера координатами из geometry; `setMarkets` также включает координаты.
+- `components/MapControls.tsx` — z-index повышен с 10 до 40.
+- `app/admin/page.tsx` — добавлен `pt-14` для отступа от sticky header.
+- `app/page.tsx` — добавлен `pt-14` для list view.
+
+## [2026-05-11] – Hotfix: Button forwardRef + async root.unmount
+
+### Fixed
+- **Критический баг: `Function components cannot be given refs` в DialogClose → Button** — компонент `Button` из shadcn/ui v4 (`components/ui/button.tsx`) не был обёрнут в `React.forwardRef`, из-за чего `@base-ui/react` компоненты (DialogClose, SheetClose) не могли пробросить ref в DOM при рендеринге через `asChild`. Исправлено: Button обёрнут в `React.forwardRef<HTMLButtonElement, ButtonProps>`, ref передаётся в `ButtonPrimitive`. Добавлен `Button.displayName = "Button"`.
+- **Предупреждение: `Attempted to synchronously unmount a root` в MarketPopup.tsx** — cleanup эффекта вызывал `root.unmount()` синхронно, что приводило к предупреждению React, когда другой эффект уже выполнял рендер. Исправлено: `root.unmount()` обёрнут в `queueMicrotask()`, чтобы unmount происходил асинхронно после завершения рендера React. Root-ссылка обнуляется синхронно для предотвращения повторных вызовов.
+
 ## [2026-05-11] – Sprint 8 — Dashboard redesign: navigation, view toggle, comments, admin panel
 
 ### Added

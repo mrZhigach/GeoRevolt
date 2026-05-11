@@ -117,9 +117,16 @@ function MarketPopupContent({
         </div>
       </div>
 
+      {/* Description (truncated) */}
+      {market.description && (
+        <p className="text-[11px] text-muted-foreground/80 mb-2 line-clamp-3 leading-relaxed">
+          {market.description}
+        </p>
+      )}
+
       {/* Liquidity info */}
       <div className="flex items-center justify-between text-[11px] text-muted-foreground mb-3">
-        <span>💰 {market.liquidity.toLocaleString()} USDC</span>
+        <span>💰 {market.liquidity != null ? market.liquidity.toLocaleString() : '—'} USDC</span>
         <a
           href={`/market/${market.contract_address}`}
           className="text-primary hover:underline font-medium"
@@ -267,12 +274,17 @@ export default function MarketPopup({ market, map, lngLat, onClose }: MarketPopu
     return () => {
       cancelled = true;
       if (rootRef.current) {
-        try {
-          rootRef.current.unmount();
-        } catch {
-          // silent
-        }
+        const root = rootRef.current;
         rootRef.current = null;
+        // Defer unmount to avoid React warning:
+        // "Attempted to synchronously unmount a root while React was already rendering"
+        queueMicrotask(() => {
+          try {
+            root.unmount();
+          } catch {
+            // silent
+          }
+        });
       }
       if (popupRef.current) {
         popupRef.current.remove();

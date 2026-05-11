@@ -98,7 +98,7 @@ function MarketCard({ market }: { market: MarketCardData }) {
         {/* Location */}
         <div className="flex items-center gap-1 text-[11px] text-muted-foreground mb-2">
           <MapPin className="w-3 h-3 shrink-0" />
-          <span className="truncate">{market.address || `${market.lat.toFixed(4)}, ${market.lng.toFixed(4)}`}</span>
+          <span className="truncate">{market.address || (market.lat != null ? `${market.lat.toFixed(4)}, ${market.lng.toFixed(4)}` : '—')}</span>
         </div>
 
         {/* Liquidity */}
@@ -197,7 +197,11 @@ export default function MarketsList({ view, onViewChange }: MarketsListProps) {
       if (features.length < 12) setHasMore(false);
       else setHasMore(true);
 
-      const newMarkets = features.map((f: any) => f.properties as MarketCardData);
+      const newMarkets = features.map((f: any) => ({
+        ...f.properties,
+        lng: f.geometry?.coordinates?.[0] ?? 0,
+        lat: f.geometry?.coordinates?.[1] ?? 0,
+      }) as MarketCardData);
 
       // Fetch prices for each market
       const withPrices = await Promise.all(

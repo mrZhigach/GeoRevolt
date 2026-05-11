@@ -536,6 +536,9 @@ export function toGeoJSON(markets: Market[]): GeoJSON.FeatureCollection {
         simulated: m.simulated,
         radius: m.radius,
         address: m.address,
+        // Price fields — null by default; populated client-side via price-history API
+        price_yes: null as number | null,
+        price_no: null as number | null,
       },
     })),
   };
