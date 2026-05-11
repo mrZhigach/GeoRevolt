@@ -140,7 +140,7 @@ export default function MarketSidebar({ market, onClose }: Props) {
             {market.category} &middot; {market.contract_address.slice(0, 14)}...
           </div>
         </div>
-        <button onClick={onClose} className="bg-transparent border-none text-muted-foreground hover:text-foreground text-2xl cursor-pointer p-0 pl-3 leading-none">
+        <button onClick={onClose} className="shrink-0 w-8 h-8 flex items-center justify-center rounded-lg bg-muted/30 text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors text-lg leading-none cursor-pointer border-none">
           &times;
         </button>
       </div>

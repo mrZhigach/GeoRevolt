@@ -174,11 +174,16 @@ export default function CreateMarketModal({ coordinates, onClose, onCreated }: P
       background: '#1a1a2e', color: '#e2e8f0', padding: 24, boxShadow: '-4px 0 20px rgba(0,0,0,0.5)',
       overflowY: 'auto', zIndex: 10, fontFamily: 'system-ui, sans-serif',
     }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-        <h2 style={{ margin: 0, fontSize: 18, fontWeight: 600 }}>Create Market</h2>
+      <div className="flex justify-between items-center mb-5">
+        <h2 style={{ margin: 0, fontSize: 18, fontWeight: 600, color: '#e2e8f0' }}>Create Market</h2>
         <button onClick={onClose} style={{
-          background: 'none', border: 'none', color: '#94a3b8', fontSize: 24, cursor: 'pointer', padding: '4px 8px',
-        }}>×</button>
+          width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center',
+          borderRadius: 8, background: 'rgba(148,163,184,0.15)', border: 'none',
+          color: '#94a3b8', fontSize: 20, cursor: 'pointer', transition: 'all 0.15s',
+        }}
+        onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(148,163,184,0.3)'; e.currentTarget.style.color = '#e2e8f0'; }}
+        onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(148,163,184,0.15)'; e.currentTarget.style.color = '#94a3b8'; }}
+        >×</button>
       </div>
 
       {/* Address search */}

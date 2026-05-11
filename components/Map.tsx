@@ -40,6 +40,7 @@ export default function Map() {
   const restoreAttempts = useRef(0);
   const webglOverlayRef = useRef<HTMLDivElement | null>(null);
   const categoryFilterRef = useRef<string>('all');
+  const createCoordsState = useRef<{ lng: number; lat: number } | null>(null);
   const [selectedMarket, setSelectedMarket] = useState<MarketProperties | null>(null);
   const [showSidebar, setShowSidebar] = useState<MarketProperties | null>(null);
   const [clickedLngLat, setClickedLngLat] = useState<{ lng: number; lat: number } | null>(null);
@@ -119,6 +120,16 @@ export default function Map() {
         );
       }
     }
+  }, []);
+
+  // ---- Global handler for "Create Market Here" button in reverse-geocode popup ----
+  useEffect(() => {
+    (window as any).__openCreateMarket = (lng: number, lat: number) => {
+      setCreateCoords({ lng, lat });
+    };
+    return () => {
+      delete (window as any).__openCreateMarket;
+    };
   }, []);
 
   // ---- Map initialization ----
@@ -394,10 +405,13 @@ export default function Map() {
               if (res.ok) {
                 const data = await res.json();
                 const address = data.display_name || 'Unknown location';
-                new maplibregl.Popup()
+                const lng = e.lngLat.lng;
+                const lat = e.lngLat.lat;
+                new maplibregl.Popup({ className: 'georevolt-popup' })
                   .setLngLat(e.lngLat)
                   .setHTML(
-                    `<div style="font-size:12px;color:hsl(var(--foreground));max-width:250px;line-height:1.4">📍 ${address}</div>`,
+                    `<div class="georevolt-popup-address">📍 ${address}</div>` +
+                    `<button class="georevolt-popup-btn" onclick="window.__openCreateMarket(${lng}, ${lat})">+ Create Market Here</button>`,
                   )
                   .addTo(m);
               }
@@ -456,8 +470,13 @@ export default function Map() {
     <div style={{ position: 'relative', width: '100%', height: '100vh' }}>
       {/* ---- Left panel: Geocoder + MapControls + EventFeed ---- */}
       <div className="fixed top-16 left-2 sm:left-4 z-40 w-[280px] sm:w-[340px] flex flex-col gap-2">
-        {/* Geocoder search */}
-        <Geocoder onSelect={(lng, lat) => handleFlyTo(lng, lat)} />
+        {/* Geocoder search row with LocateButton */}
+        <div className="flex items-center gap-1.5">
+          <div className="flex-1">
+            <Geocoder onSelect={(lng, lat) => handleFlyTo(lng, lat)} />
+          </div>
+          <LocateButton onLocate={handleLocate} />
+        </div>
         {/* Existing controls */}
         <MapControls
           walletAddress={address}
@@ -468,11 +487,6 @@ export default function Map() {
           onCategoryFilter={handleCategoryFilter}
         />
         {!showSidebar && !createCoords && <EventFeed />}
-      </div>
-
-      {/* ---- Locate Button (top-right) ---- */}
-      <div className="fixed top-20 right-4 z-45">
-        <LocateButton onLocate={handleLocate} />
       </div>
 
       {/* ---- Stats Card (bottom-right) ---- */}

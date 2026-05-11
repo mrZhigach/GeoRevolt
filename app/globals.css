@@ -182,10 +182,50 @@
 .maplibregl-popup-content {
   font-size: 13px;
   padding: 12px;
-  background: hsl(var(--card));
+  background: hsl(var(--card)) !important;
+  color: hsl(var(--foreground)) !important;
+  border: 1px solid hsl(var(--border)) !important;
+  border-radius: var(--radius) !important;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.5) !important;
+}
+
+/* ===== Reverse geocoding popup (background click) ===== */
+.georevolt-popup .maplibregl-popup-content {
+  background: hsl(var(--card)) !important;
+  color: hsl(var(--foreground)) !important;
+  border: 1px solid hsl(var(--border)) !important;
+  border-radius: var(--radius-lg) !important;
+  padding: 14px 16px !important;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.5) !important;
+  min-width: 220px;
+}
+.georevolt-popup .maplibregl-popup-tip {
+  border-top-color: hsl(var(--border)) !important;
+  border-bottom-color: hsl(var(--border)) !important;
+}
+.georevolt-popup .georevolt-popup-address {
+  font-size: 12px;
+  line-height: 1.5;
   color: hsl(var(--foreground));
-  border: 1px solid hsl(var(--border));
-  border-radius: var(--radius);
+  margin-bottom: 10px;
+  word-break: break-word;
+}
+.georevolt-popup .georevolt-popup-btn {
+  display: block;
+  width: 100%;
+  padding: 8px 12px;
+  border-radius: 6px;
+  border: none;
+  background: hsl(142, 71%, 45%);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  text-align: center;
+  transition: background 0.15s ease;
+}
+.georevolt-popup .georevolt-popup-btn:hover {
+  background: hsl(142, 71%, 38%);
 }
 
 /* Glass card utility */
