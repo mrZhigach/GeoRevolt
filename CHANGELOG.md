@@ -11,19 +11,23 @@
 - **`components/StatsCard.tsx`** — плавающая карточка статистики: totalMarkets, totalLiquidityUSDC, activeMarkets. Позиция `fixed bottom-6 right-6`, стиль `card-glass`, автообновление 30s. Скрыта на мобильных.
 - **`components/LocateButton.tsx`** — кнопка геолокации с иконкой Crosshair. Использует `navigator.geolocation.getCurrentPosition`, центрирует карту, добавляет временный синий маркер (5 сек). Spinner-анимация при поиске.
 - **Reverse geocoding on map click** — `Map.tsx`: при клике на пустую область карты (не на маркеры/кластеры) выполняется Nominatim reverse geocode, адрес показывается в MapLibre Popup. 300ms debounce для отличия от dblclick.
+- **"Create Market Here" button** — в попапе reverse geocoding добавлена кнопка "Create Market Here", открывающая CreateMarketModal с координатами клика.
 - **MarketSidebar → card-glass** — полный рефакторинг `MarketSidebar.tsx`: ~170 строк inline-стилей заменены на Tailwind + shadcn/ui (Badge, Button, Input, Card, CardContent). Компонент `card-glass` применён ко всем карточкам (PriceBox, Trade, Redeem, Price History, Discussions).
 
 ### Changed
 - `components/MapControls.tsx` — удалён inline-геокодер (заменён на Geocoder), удалены неиспользуемые импорты (Search, MapPin, RefreshCw, Input, useRef), удалён debounceRef + geoCoder state
-- `components/Map.tsx` — добавлены импорты Geocoder, LocateButton, StatsCard; левая панель теперь: Geocoder → MapControls → EventFeed; добавлены LocateButton (top-right) и StatsCard (bottom-right)
+- `components/Map.tsx` — добавлены импорты Geocoder, LocateButton, StatsCard; левая панель теперь: Geocoder + LocateButton → MapControls → EventFeed; добавлен StatsCard (bottom-right); глобальный хендлер `window.__openCreateMarket`
 - `components/MapControls.tsx` — Stats mini card сохранена (дублирование с StatsCard, но в левой панели)
 
 ### Fixed
+- **Reverse geocode popup styling** — белый фон → тёмный (класс `georevolt-popup` в globals.css с `!important`), читаемый текст, стилизация tip.
+- **LocateButton перекрывал правые панели** — перемещён из `fixed top-20 right-4` в левую панель, рядом с Geocoder.
+- **Close buttons visibility** — MarketSidebar и CreateMarketModal: кнопки × теперь с фоном `bg-muted/30`, hover-эффектом, правильным центрированием (32×32px, скругление 8px).
 - `components/MarketSidebar.tsx` — все inline-стили заменены на Tailwind, удалены хардкодные цвета (`#1a1a2e`, `#16213e`, `#e2e8f0` → CSS-переменные `bg-card`, `text-foreground`, etc.)
 
 ### DevOps / Infrastructure
 - Package.json version 1.6.0
-- 11/12 Jest API tests, build — all passing
+- 11/12 Jest API tests, clean build — all passing
 - docs validation PASS
 
 ## [2026-05-11] — Reverse geocoding on background map click
