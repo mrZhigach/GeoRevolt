@@ -10,6 +10,9 @@ import {
   ResponsiveContainer, Legend,
 } from 'recharts';
 import Link from 'next/link';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { MessageSquare } from 'lucide-react';
+import CommentsSection from '@/components/CommentsSection';
 
 interface MarketData {
   id: number;
@@ -204,9 +207,11 @@ export default function MarketDetailPage() {
           ← Back to map
         </Link>
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 400px', gap: 24, marginTop: 16 }}>
+        <div className="mt-4 grid grid-cols-1 lg:grid-cols-[1fr_400px] gap-6">
+          {/* Left column */}
           <div>
-            <div style={{ background: '#1a1a2e', borderRadius: 12, padding: 24, marginBottom: 24 }}>
+            {/* Market Info Card */}
+            <div className="rounded-xl p-6 mb-6" style={{ background: '#1a1a2e' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
                 <div>
                   <h1 style={{ margin: 0, fontSize: 24, fontWeight: 600 }}>{market.name}</h1>
@@ -229,30 +234,56 @@ export default function MarketDetailPage() {
               <p style={{ color: '#94a3b8', fontSize: 14, lineHeight: 1.6, margin: '12px 0 0' }}>{market.description}</p>
             </div>
 
-            <div style={{ background: '#1a1a2e', borderRadius: 12, padding: 24 }}>
-              <h2 style={{ margin: '0 0 16px', fontSize: 16, fontWeight: 600, color: '#94a3b8' }}>Price History</h2>
-              {chartData.length > 0 ? (
-                <ResponsiveContainer width="100%" height={400}>
-                  <LineChart data={chartData}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
-                    <XAxis dataKey="time" stroke="#64748b" fontSize={11} />
-                    <YAxis stroke="#64748b" fontSize={11} domain={[0, 'auto']} />
-                    <Tooltip
-                      contentStyle={{ background: '#1e293b', border: '1px solid #334155', borderRadius: 8, color: '#e2e8f0' }}
-                    />
-                    <Legend />
-                    <Line type="monotone" dataKey="YES" stroke="#22c55e" strokeWidth={2} dot={false} />
-                    <Line type="monotone" dataKey="NO" stroke="#ef4444" strokeWidth={2} dot={false} />
-                  </LineChart>
-                </ResponsiveContainer>
-              ) : (
-                <div style={{ textAlign: 'center', padding: 40, color: '#64748b', fontSize: 14 }}>
-                  No price history yet. Prices will appear as trades are made.
+            {/* Tabs: Overview + Discussions */}
+            <Tabs defaultValue="overview" className="w-full">
+              <TabsList className="w-full justify-start bg-transparent border-b border-border/40 rounded-none p-0 h-auto" variant="line">
+                <TabsTrigger
+                  value="overview"
+                  className="rounded-none px-4 py-2.5 text-sm data-active:border-primary data-active:bg-transparent"
+                >
+                  Overview
+                </TabsTrigger>
+                <TabsTrigger
+                  value="discussions"
+                  className="rounded-none px-4 py-2.5 text-sm gap-2 data-active:border-primary data-active:bg-transparent"
+                >
+                  <MessageSquare className="w-4 h-4" />
+                  Discussions
+                </TabsTrigger>
+              </TabsList>
+              <TabsContent value="overview" className="pt-4">
+                <div className="rounded-xl p-6" style={{ background: '#1a1a2e' }}>
+                  <h2 style={{ margin: '0 0 16px', fontSize: 16, fontWeight: 600, color: '#94a3b8' }}>Price History</h2>
+                  {chartData.length > 0 ? (
+                    <ResponsiveContainer width="100%" height={400}>
+                      <LineChart data={chartData}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
+                        <XAxis dataKey="time" stroke="#64748b" fontSize={11} />
+                        <YAxis stroke="#64748b" fontSize={11} domain={[0, 'auto']} />
+                        <Tooltip
+                          contentStyle={{ background: '#1e293b', border: '1px solid #334155', borderRadius: 8, color: '#e2e8f0' }}
+                        />
+                        <Legend />
+                        <Line type="monotone" dataKey="YES" stroke="#22c55e" strokeWidth={2} dot={false} />
+                        <Line type="monotone" dataKey="NO" stroke="#ef4444" strokeWidth={2} dot={false} />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  ) : (
+                    <div style={{ textAlign: 'center', padding: 40, color: '#64748b', fontSize: 14 }}>
+                      No price history yet. Prices will appear as trades are made.
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
+              </TabsContent>
+              <TabsContent value="discussions" className="pt-4">
+                <div className="rounded-xl p-6" style={{ background: '#1a1a2e' }}>
+                  <CommentsSection marketAddress={address} />
+                </div>
+              </TabsContent>
+            </Tabs>
           </div>
 
+          {/* Right column */}
           <div>
             <div style={{ background: '#1a1a2e', borderRadius: 12, padding: 20, marginBottom: 16 }}>
               <h2 style={{ margin: '0 0 16px', fontSize: 14, color: '#94a3b8', fontWeight: 600 }}>Current Prices</h2>

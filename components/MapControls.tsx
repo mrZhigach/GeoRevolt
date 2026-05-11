@@ -208,7 +208,7 @@ export default function MapControls({
   // Render
   // -----------------------------------------------------------------------
   return (
-    <div className="fixed top-4 left-4 z-10 w-[340px] flex flex-col gap-2">
+    <div className="fixed top-4 left-2 sm:left-4 z-10 w-[280px] sm:w-[340px] flex flex-col gap-2">
       {/* ---- Main Control Card ---- */}
       <Card className="glass rounded-xl shadow-lg p-3 space-y-3 transition-soft">
         {/* Search form */}

@@ -231,5 +231,33 @@
 
 ---
 
-**Дата последней проверки:** 2026-05-09  
+## Sprint 8 — Dashboard redesign (2026-05-11)
+
+| Артефакт | Версия | Дата | Описание |
+|----------|--------|------|----------|
+| `components/AppHeader.tsx` | 2.0 | 2026-05-11 | Глобальная навигация: гамбургер, поиск, тема, язык, профиль |
+| `components/ViewToggle.tsx` | 1.0 | 2026-05-11 | Переключение карта/список через URL |
+| `components/MarketsList.tsx` | 1.0 | 2026-05-11 | Грид карточек рынков с фильтрацией и пагинацией |
+| `components/CommentsSection.tsx` | 1.0 | 2026-05-11 | Система комментариев с деревом ответов |
+| `app/api/markets/by-address/[address]/comments/route.ts` | 1.0 | 2026-05-11 | API комментариев (GET/POST) |
+| `app/api/comments/[id]/route.ts` | 1.0 | 2026-05-11 | API удаления комментария (DELETE) |
+| `components/AdminDashboard.tsx` | 2.0 | 2026-05-11 | Улучшенный дашборд с 3 графиками |
+| `components/AdminBatchUpload.tsx` | 2.0 | 2026-05-11 | Прогресс-бар, улучшенный отчёт |
+| `components/AdminAllowedCountries.tsx` | 2.0 | 2026-05-11 | Страны с badges и common codes |
+| `e2e/sprint8.spec.ts` | 1.0 | 2026-05-11 | 15 E2E-тестов Sprint 8 |
+| `lib/db.ts` (comments table + getFilteredMarkets) | 2.0 | 2026-05-11 | Новая таблица `comments`, функция фильтрации рынков |
+
+### База данных — новые таблицы
+
+| Таблица | Назначение | Индексы |
+|---------|-----------|---------|
+| `comments` | Комментарии к рынкам (threaded) | `idx_comments_market`, `idx_comments_parent` |
+
+### Новые shadcn/ui компоненты (v4, base-nova)
+
+dropdown-menu, tabs, avatar, progress, separator, badge, switch, scroll-area
+
+---
+
+**Дата последней проверки:** 2026-05-11  
 **Правила:** любой новый артефакт (контракт, PMTiles, образ) добавляется в эту таблицу сразу после создания. Ответственный – @archivist.

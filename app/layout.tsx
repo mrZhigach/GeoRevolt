@@ -23,7 +23,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${inter.variable} ${dmSans.variable}`}>
+    <html lang="en" className={`${inter.variable} ${dmSans.variable} dark`}>
       <body className="font-sans antialiased" style={{ margin: 0, padding: 0 }}>
         <Web3Provider>
           <AppHeader />

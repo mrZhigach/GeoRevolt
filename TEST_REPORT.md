@@ -1,7 +1,49 @@
 # Сводка тестирования проекта GeoRevolt
 
 **Актуально на:** 2026-05-11 23:59 UTC  
-**Спринт:** 7 — Премиальный дизайн PPLX
+**Спринт:** 8 — Dashboard redesign
+
+## Sprint 8 — Dashboard redesign
+
+### Build & Compilation
+| Проверка | Статус |
+|----------|--------|
+| `next build` (production) | ✅ PASS |
+| TypeScript strict mode | ✅ PASS |
+| New shadcn/ui components (8 шт.) | ✅ DropdownMenu, Tabs, Avatar, Progress, Separator, Badge, Switch, ScrollArea |
+
+### New API Tests
+| Эндпоинт | Статус |
+|----------|--------|
+| GET `/api/markets?page=1&limit=5` (paginated) | ✅ PASS |
+| GET `/api/markets?category=technology` (filtered) | ✅ PASS |
+| GET `/api/markets?search=test` (search) | ✅ PASS |
+| GET `/api/markets/by-address/[address]/comments` | ✅ PASS |
+| POST `/api/markets/by-address/[address]/comments` (validation) | ✅ PASS |
+| DELETE `/api/comments/[id]` (ownership) | ✅ PASS |
+
+### New Components (build pass)
+| Компонент | Статус |
+|-----------|--------|
+| `AppHeader.tsx` — hamburger, search, theme, language, profile | ✅ Build pass |
+| `ViewToggle.tsx` — Map/List switch with URL state | ✅ Build pass |
+| `MarketsList.tsx` — grid cards, filters, pagination, prices | ✅ Build pass |
+| `CommentsSection.tsx` — threaded comments, replies, delete | ✅ Build pass |
+| `AdminDashboard.tsx` — 4 metric cards, 3 charts, category summary | ✅ Build pass |
+| `AdminBatchUpload.tsx` — progress bar, improved results | ✅ Build pass |
+| `AdminAllowedCountries.tsx` — badges, common codes, messages | ✅ Build pass |
+
+### E2E Tests (Playwright)
+- **15 new tests** in `e2e/sprint8.spec.ts`:
+  - Comments: GET paginated, POST validation, full create/delete cycle
+  - ViewToggle: paginated API, category filter, search
+  - Frontend: admin tabs navigation, tab switching, header visibility, discussions tab, list view
+  - Mobile: hamburger menu, map page load, single column list
+  - Admin: batch upload page renders
+
+### Unit Tests (Existing — no regression)
+- **49 Foundry tests** (Market.sol + MarketFactory.sol) — all PASS
+- **12 API tests** (Jest) — all PASS
 
 ## Sprint 7 — UI Integration Tests
 
@@ -362,5 +404,60 @@ CI: GitHub Actions workflow (`e2e-fork`), запускается вручную 
 
 ---
 
+## 13. Hotfix: Cannot update an unmounted root (MarketPopup.tsx)
+
+### Проблема
+При закрытии MapLibre Popup и одновременном выполнении асинхронного `fetchPrices()`:
+```
+Error: Cannot update an unmounted root.
+  at render (components/MarketPopup.tsx:203)
+  at fetchPrices (components/MarketPopup.tsx:302)
+```
+
+### Коренная причина
+- `fetchPrices` — асинхронная функция без ожидания (fire-and-forget)
+- Popup закрывается → cleanup вызывает `root.unmount()`
+- `fetchPrices` завершается после unmount → `root.render()` на размонтированном root
+- Проп `market` мутировался напрямую
+
+### Исправление
+| Изменение | Файл | Описание |
+|-----------|------|----------|
+| `mountedRef` guard | MarketPopup.tsx:161,197 | `if (!mountedRef.current \|\| !rootRef.current) return;` перед render |
+| try-catch unmount | MarketPopup.tsx:249-253 | Защита `root.unmount()` от исключений |
+| `renderContent` helper | MarketPopup.tsx:190-207 | Единая точка рендера с guard; создание нового объекта market вместо мутации |
+| `onClose` в deps | MarketPopup.tsx:261 | Добавлен в dependency array useEffect |
+
+### Верификация
+| Проверка | Статус |
+|----------|--------|
+| build (next build) | ✅ PASS |
+| Компиляция TypeScript | ✅ PASS |
+| Логика mountedRef (code review) | ✅ Корректно |
+
+## 14. Hotfix: Function components cannot be given refs (input.tsx)
+
+### Проблема
+```
+Warning: Function components cannot be given refs.
+Check the render method of `MapControls`.
+Input@webpack-internal:///(app-pages-browser)/./components/ui/input.tsx:15
+```
+
+### Коренная причина
+Компонент `Input` был объявлен как обычная функция (`function Input(...)`) без `React.forwardRef`, хотя `MapControls` передавал `ref={inputRef}`.
+
+### Исправление
+`Input` обёрнут в `React.forwardRef<HTMLInputElement, React.ComponentProps<"input">>`, ref пробрасывается в `InputPrimitive`.
+
+### Верификация
+| Проверка | Статус |
+|----------|--------|
+| build (next build) | ✅ PASS |
+| Компиляция TypeScript | ✅ PASS |
+
+---
+
 **Резюме:** 49 контрактных + 12 API тестов — 61 PASS, 0 FAIL. Газ функций buy/sell снижен на 5–7%. E2E-скрипты: Anvil (local) + Forked Amoy.  
-**Спринт 7 (PPLX дизайн):** shadcn/ui v4 установлен, 13 UI-компонентов, 3 новых компонента (MapControls, MarketPopup, AppHeader), PPLX-тёмная тема, glass-эффекты, Google Fonts. Build production — PASS.
+**Спринт 7 (PPLX дизайн):** shadcn/ui v4 установлен, 13 UI-компонентов, 3 новых компонента (MapControls, MarketPopup, AppHeader), PPLX-тёмная тема, glass-эффекты, Google Fonts. Build production — PASS.  
+**Hotfix (2026-05-11):** Исправлены `Cannot update an unmounted root` (MarketPopup.tsx) и `Function components cannot be given refs` (input.tsx).

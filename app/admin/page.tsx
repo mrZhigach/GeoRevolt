@@ -3,6 +3,10 @@
 import { useState, useEffect } from 'react';
 import { useAccount, useConnect, useDisconnect } from 'wagmi';
 import { injected } from 'wagmi/connectors';
+import { Wallet, LogOut, Shield, Globe, Upload, LayoutDashboard, List } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import AdminDashboard from '@/components/AdminDashboard';
 import AdminMarketsList from '@/components/AdminMarketsList';
 import AdminBatchUpload from '@/components/AdminBatchUpload';
@@ -10,11 +14,11 @@ import AdminAllowedCountries from '@/components/AdminAllowedCountries';
 
 const ADMIN_WALLET = process.env.NEXT_PUBLIC_ADMIN_WALLET_ADDRESS || '';
 
-const TABS = [
-  { key: 'dashboard', label: 'Dashboard' },
-  { key: 'markets', label: 'Markets' },
-  { key: 'batch', label: 'Batch Upload' },
-  { key: 'countries', label: 'Allowed Countries' },
+const TABS_CONFIG = [
+  { key: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+  { key: 'markets', label: 'Markets', icon: List },
+  { key: 'batch', label: 'Batch Upload', icon: Upload },
+  { key: 'countries', label: 'Allowed Countries', icon: Globe },
 ];
 
 export default function AdminPage() {
@@ -28,51 +32,89 @@ export default function AdminPage() {
   const isAdmin = !ADMIN_WALLET || (address && address.toLowerCase() === ADMIN_WALLET.toLowerCase());
 
   return (
-    <div style={{ maxWidth: 1200, margin: '0 auto', padding: 24, color: '#e2e8f0', fontFamily: 'system-ui, sans-serif', minHeight: '100vh', background: '#0f172a' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
-        <h1 style={{ fontSize: 22, fontWeight: 600, margin: 0 }}>Admin Dashboard</h1>
-        <div>
-          {!mounted ? (
-            <span style={{ fontSize: 12, color: '#64748b' }}>...</span>
-          ) : isConnected ? (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-              <span style={{ color: isAdmin ? '#22c55e' : '#ef4444', fontSize: 12 }}>
-                {address?.slice(0, 6)}...{address?.slice(-4)} {isAdmin ? '(admin)' : '(not admin)'}
-              </span>
-              <button onClick={() => disconnect()} style={{ background: 'none', border: '1px solid #ef4444', color: '#ef4444', borderRadius: 4, padding: '4px 8px', cursor: 'pointer', fontSize: 11 }}>
-                Disconnect
-              </button>
+    <div className="min-h-screen bg-background">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6">
+        {/* Header */}
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
+              <Shield className="w-5 h-5 text-primary" />
             </div>
-          ) : (
-            <button onClick={() => connect({ connector: injected() })} style={{ background: '#6366f1', border: 'none', color: '#fff', borderRadius: 6, padding: '8px 16px', cursor: 'pointer', fontSize: 13, fontWeight: 500 }}>
-              Connect Wallet
-            </button>
-          )}
+            <div>
+              <h1 className="text-xl font-heading font-semibold text-foreground">Admin Dashboard</h1>
+              <p className="text-xs text-muted-foreground mt-0.5">Manage prediction markets and platform settings</p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3">
+            {mounted && (
+              isConnected ? (
+                <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary/10 border border-primary/20">
+                    <Wallet className="w-3.5 h-3.5 text-primary" />
+                    <span className="text-xs text-primary font-medium">
+                      {address?.slice(0, 6)}...{address?.slice(-4)}
+                    </span>
+                    <Badge variant={isAdmin ? 'default' : 'secondary'} className="text-[10px] h-4 px-1.5">
+                      {isAdmin ? 'admin' : 'user'}
+                    </Badge>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => disconnect()}
+                    className="h-8 text-xs text-muted-foreground hover:text-destructive"
+                  >
+                    <LogOut className="w-3.5 h-3.5 mr-1" />
+                    Disconnect
+                  </Button>
+                </div>
+              ) : (
+                <Button
+                  size="sm"
+                  onClick={() => connect({ connector: injected() })}
+                  className="h-9"
+                >
+                  <Wallet className="w-4 h-4 mr-2" />
+                  Connect Wallet
+                </Button>
+              )
+            )}
+          </div>
         </div>
-      </div>
 
-      <div style={{ display: 'flex', gap: 4, marginBottom: 24, borderBottom: '1px solid #1e293b', paddingBottom: 0 }}>
-        {TABS.map((tab) => (
-          <button
-            key={tab.key}
-            onClick={() => setActiveTab(tab.key)}
-            style={{
-              padding: '10px 20px', border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 500,
-              background: activeTab === tab.key ? '#1e293b' : 'transparent',
-              color: activeTab === tab.key ? '#e2e8f0' : '#64748b',
-              borderRadius: '8px 8px 0 0', borderBottom: activeTab === tab.key ? '2px solid #6366f1' : '2px solid transparent',
-              transition: 'all 0.2s',
-            }}
-          >
-            {tab.label}
-          </button>
-        ))}
-      </div>
+        {/* Tabs */}
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <TabsList className="w-full justify-start bg-transparent border-b border-border/40 rounded-none p-0 h-auto mb-6" variant="line">
+            {TABS_CONFIG.map((tab) => {
+              const Icon = tab.icon;
+              return (
+                <TabsTrigger
+                  key={tab.key}
+                  value={tab.key}
+                  className="rounded-none border-b-2 border-transparent data-active:border-primary data-active:bg-transparent px-4 py-2.5 text-sm gap-2"
+                >
+                  <Icon className="w-4 h-4" />
+                  {tab.label}
+                </TabsTrigger>
+              );
+            })}
+          </TabsList>
 
-      {activeTab === 'dashboard' && <AdminDashboard />}
-      {activeTab === 'markets' && <AdminMarketsList />}
-      {activeTab === 'batch' && <AdminBatchUpload />}
-      {activeTab === 'countries' && <AdminAllowedCountries />}
+          <TabsContent value="dashboard" className="mt-0">
+            <AdminDashboard />
+          </TabsContent>
+          <TabsContent value="markets" className="mt-0">
+            <AdminMarketsList />
+          </TabsContent>
+          <TabsContent value="batch" className="mt-0">
+            <AdminBatchUpload />
+          </TabsContent>
+          <TabsContent value="countries" className="mt-0">
+            <AdminAllowedCountries />
+          </TabsContent>
+        </Tabs>
+      </div>
     </div>
   );
 }
